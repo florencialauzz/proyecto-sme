@@ -1,0 +1,40 @@
+# === Reglas estándar de Unity ===
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# Los .meta SÍ se versionan: esta línea los rescata del ignore
+!/[Aa]ssets/**/*.meta
+
+# Cache de Visual Studio / IDE
+.vs/
+.gradle/
+ExportedObj/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Archivos generados al crashear
+sysinfo.txt
+
+# Builds exportadas
+*.apk
+*.aab
+*.unitypackage
+*.app

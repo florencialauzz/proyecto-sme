@@ -1,0 +1,19 @@
+# === macOS ( Flor) ===
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+._*
+
+# === Windows (luca) ===
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# === Editores / IDE ===
+.idea/
+.vscode/
+*.swp
+*~
