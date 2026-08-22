@@ -1,0 +1,11 @@
+# Copiar como application-local.properties (gitignorado) y completar con los valores reales.
+# Ver proceso/convenciones-codigo.md.
+
+spring.datasource.url=jdbc:mysql://localhost:3306/sme_db
+spring.datasource.username=root
+spring.datasource.password=
+
+spring.jpa.hibernate.ddl-auto=update
+
+# Secreto para firmar los JWT (HS256) — cualquier string largo y aleatorio, distinto por máquina.
+sme.jwt.secret=cambiar-por-un-secreto-propio-de-al-menos-32-caracteres
