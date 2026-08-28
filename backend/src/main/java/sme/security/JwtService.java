@@ -1,5 +1,6 @@
 package sme.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,5 +32,16 @@ public class JwtService {
                 .expiration(Date.from(ahora.plusMillis(EXPIRACION_MS)))
                 .signWith(clave)
                 .compact();
+    }
+
+    // Usado por JwtAuthFilter para autenticar cada request protegido. Si el token
+    // es inválido o expiró, lanza JwtException y el filtro lo trata como no autenticado.
+    public Long obtenerUsuarioId(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(clave)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.get("usuarioId", Long.class);
     }
 }
