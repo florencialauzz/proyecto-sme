@@ -30,8 +30,12 @@ namespace Sme.Managers
             };
             request.SetRequestHeader("Content-Type", "application/json");
 
-            // Autenticación (header Authorization: Bearer) se agrega recién cuando
-            // exista algún endpoint protegido que lo requiera — RF-01 y RF-02 son públicos.
+            // Endpoints protegidos (todos salvo /auth/registro y /auth/login) necesitan
+            // el token de la sesión activa (contratos/api-contract.md, sección 1).
+            if (SesionManager.HaySesionActiva)
+            {
+                request.SetRequestHeader("Authorization", "Bearer " + SesionManager.Token);
+            }
 
             request.SendWebRequest().completed += _ =>
             {

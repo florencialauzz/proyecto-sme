@@ -13,5 +13,13 @@ namespace Sme.Managers
             UsuarioId = usuarioId;
             Token = token;
         }
+
+        // RF-06: JWT stateless, no hay nada que avisarle al backend. Alcanza con
+        // borrar el token en el cliente.
+        public static void CerrarSesion()
+        {
+            UsuarioId = 0;
+            Token = null;
+        }
     }
 }
