@@ -47,9 +47,16 @@ namespace Sme.UI
             ApiClient.Post<CrearProyectoRequest, CrearProyectoResponse>(
                 "/proyectos",
                 request,
-                alTenerExito: _ =>
+                alTenerExito: respuesta =>
                 {
                     botonCrearProyecto.interactable = true;
+                    // RF-12: la escena Editor lee estos datos desde ProyectoManager
+                    // para generar la grilla (GrillaGenerador.Start).
+                    ProyectoManager.GuardarProyecto(
+                        respuesta.proyectoId,
+                        respuesta.filasGrilla,
+                        respuesta.columnasGrilla,
+                        respuesta.estado);
                     alCrearProyectoConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>

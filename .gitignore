@@ -17,3 +17,6 @@ $RECYCLE.BIN/
 .vscode/
 *.swp
 *~
+
+# === Caché local ajeno al proyecto (sacar al terminar) ===
+.sf/
