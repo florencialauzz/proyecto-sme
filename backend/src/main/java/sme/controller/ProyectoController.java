@@ -3,13 +3,21 @@ package sme.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import sme.dto.CrearProyectoRequest;
 import sme.dto.CrearProyectoResponse;
+import sme.dto.GuardarGrillaRequest;
+import sme.dto.GuardarGrillaResponse;
+import sme.dto.ProyectoResumenResponse;
 import sme.service.ProyectoService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/proyectos")
@@ -27,5 +35,21 @@ public class ProyectoController {
                                                          Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED).body(proyectoService.crear(usuarioId, request));
+    }
+
+    // RF-22
+    @GetMapping
+    public ResponseEntity<List<ProyectoResumenResponse>> listar(Authentication authentication) {
+        Long usuarioId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(proyectoService.listar(usuarioId));
+    }
+
+    // RF-13, RF-21
+    @PutMapping("/{id}/grilla")
+    public ResponseEntity<GuardarGrillaResponse> guardarGrilla(@PathVariable Long id,
+                                                                @RequestBody GuardarGrillaRequest request,
+                                                                Authentication authentication) {
+        Long usuarioId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(proyectoService.guardarGrilla(usuarioId, id, request));
     }
 }
