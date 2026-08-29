@@ -4,25 +4,34 @@ using UnityEngine.EventSystems;
 
 namespace Sme.Grid
 {
-    // RF-13: pieza Plaza ya colocada en la grilla. Se puede mover (arrastrar a
-    // otra celda), rotar (clic, cambia la cara de acceso) o quitar (arrastrar
-    // fuera de los límites de la grilla).
+    // RF-13: pieza Plaza. Se puede colocar, mover (arrastrar a otra celda),
+    // rotar y quitar (arrastrar fuera de los límites de la grilla).
     //
     // Una Plaza ocupa 2 celdas pero se persiste como una sola fila en su celda
     // "ancla" (dominio/modelo-clases.md) — la segunda celda se infiere de
-    // caraAcceso. Por eso el rectángulo cambia de forma (vertical u horizontal)
-    // según la orientación, en vez de ser un cuadrado fijo: así se ve realmente
-    // qué 2 celdas ocupa. Rotar cambia cuál es la segunda celda, así que
-    // revalida la colocación igual que un movimiento.
+    // caraAcceso. Por eso el rectángulo es siempre de 2 celdas de largo (nunca
+    // un cuadrado de 1), y cambia de forma (vertical u horizontal) según la
+    // orientación.
+    //
+    // La rotación se hace ANTES de soltar la pieza: mientras se sostiene el
+    // arrastre (recién instanciada desde el catálogo, o una ya colocada que se
+    // está moviendo), la tecla R cicla la orientación sin validar nada — la
+    // validación real (celda ocupada / fuera de la grilla) ocurre una sola vez,
+    // al soltar, en IntentarColocar. Así se puede orientar la pieza de una sola
+    // vez en espacios ajustados, sin tener que colocarla y corregirla después.
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(CanvasGroup))]
-    public class PiezaView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         [SerializeField] private RectTransform flechaAcceso;
+
+        // RF-21 lee esto para armar el JSON a guardar (PUT /grilla).
+        public CaraAcceso CaraAcceso => caraAcceso;
 
         private CaraAcceso caraAcceso = CaraAcceso.NORTE;
         private CeldaView celdaAncla;
         private CeldaView celdaSecundaria;
+        private bool estaArrastrando;
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
         private Canvas canvasRaiz;
@@ -34,7 +43,88 @@ namespace Sme.Grid
             canvasRaiz = GetComponentInParent<Canvas>().rootCanvas;
         }
 
-        // Intenta asentar la pieza con celdaAncla como ancla y la celda vecina
+        private void Update()
+        {
+            if (estaArrastrando && Input.GetKeyDown(KeyCode.R))
+            {
+                caraAcceso = (CaraAcceso)(((int)caraAcceso + 1) % 4);
+                AplicarTamanioYOrientacion();
+            }
+        }
+
+        // --- Arrastre desde el catálogo (pieza recién instanciada, todavía sin celda) ---
+
+        public void ComenzarArrastreDesdeCatalogo()
+        {
+            estaArrastrando = true;
+            canvasGroup.blocksRaycasts = false;
+            AplicarTamanioYOrientacion();
+        }
+
+        public void SeguirPuntero(Vector2 posicionPantalla)
+        {
+            rectTransform.position = posicionPantalla;
+        }
+
+        public void FinalizarArrastreDesdeCatalogo(PointerEventData eventData)
+        {
+            estaArrastrando = false;
+            canvasGroup.blocksRaycasts = true;
+            CeldaView celdaDestino = RaycastUtils.BuscarCeldaBajoPuntero(eventData);
+
+            if (celdaDestino == null)
+            {
+                MensajesEditor.Mostrar("La plaza queda fuera de los límites de la grilla.");
+                Destroy(gameObject);
+                return;
+            }
+
+            if (!IntentarColocar(celdaDestino))
+            {
+                Destroy(gameObject);
+            }
+        }
+
+        // --- Arrastre de una pieza ya colocada (mover o quitar) ---
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            celdaAncla.Liberar();
+            celdaSecundaria.Liberar();
+            estaArrastrando = true;
+            rectTransform.SetParent(canvasRaiz.transform, true);
+            canvasGroup.blocksRaycasts = false;
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            rectTransform.position = eventData.position;
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
+        {
+            estaArrastrando = false;
+            canvasGroup.blocksRaycasts = true;
+            CeldaView celdaDestino = RaycastUtils.BuscarCeldaBajoPuntero(eventData);
+
+            if (celdaDestino == null)
+            {
+                // Soltada fuera de los límites de la grilla: quitar.
+                MensajesEditor.Mostrar("La plaza queda fuera de los límites de la grilla.");
+                Destroy(gameObject);
+                return;
+            }
+
+            CeldaView anclaOriginal = celdaAncla;
+            if (!IntentarColocar(celdaDestino))
+            {
+                IntentarColocar(anclaOriginal);
+            }
+        }
+
+        // --- Colocación (compartida por ambos flujos de arrastre) ---
+
+        // Intenta asentar la pieza con nuevaAncla como ancla y la celda vecina
         // (según caraAcceso) como segunda celda. Si alguna de las dos está
         // ocupada o la segunda queda fuera de la grilla, no cambia nada y
         // devuelve false — quien llama decide qué hacer (revertir, destruir).
@@ -64,6 +154,11 @@ namespace Sme.Grid
 
         private CeldaView ObtenerCeldaSecundaria(CeldaView ancla)
         {
+            // Asume que el GridLayoutGroup arranca en la esquina superior
+            // izquierda con eje horizontal (default de Unity): fila creciente
+            // = hacia abajo, columna creciente = hacia la derecha. Si en algún
+            // momento se cambia el Start Corner / Start Axis del contenedor,
+            // este mapeo hay que revisarlo.
             (int deltaFila, int deltaColumna) = caraAcceso switch
             {
                 CaraAcceso.NORTE => (-1, 0),
@@ -82,97 +177,36 @@ namespace Sme.Grid
         private void PosicionarSobreCeldas()
         {
             rectTransform.SetParent(celdaAncla.transform, false);
+            AplicarTamanioYOrientacion();
 
+            Vector2 pasoEntreCentros = GrillaGenerador.TamanioCelda + GrillaGenerador.Espaciado;
+
+            rectTransform.anchoredPosition = caraAcceso switch
+            {
+                CaraAcceso.NORTE => new Vector2(0f, pasoEntreCentros.y / 2f),
+                CaraAcceso.SUR => new Vector2(0f, -pasoEntreCentros.y / 2f),
+                CaraAcceso.ESTE => new Vector2(pasoEntreCentros.x / 2f, 0f),
+                CaraAcceso.OESTE => new Vector2(-pasoEntreCentros.x / 2f, 0f),
+                _ => Vector2.zero
+            };
+        }
+
+        // Tamaño real (en unidades de la grilla) y flecha de orientación. Se usa
+        // tanto para la pieza ya asentada como para el "fantasma" en pleno
+        // arrastre (todavía sin celda) — por eso no depende de celdaAncla.
+        private void AplicarTamanioYOrientacion()
+        {
             Vector2 tamCelda = GrillaGenerador.TamanioCelda;
             Vector2 espaciado = GrillaGenerador.Espaciado;
-            Vector2 pasoEntreCentros = tamCelda + espaciado;
+            bool esVertical = caraAcceso == CaraAcceso.NORTE || caraAcceso == CaraAcceso.SUR;
 
-            switch (caraAcceso)
-            {
-                case CaraAcceso.NORTE:
-                    rectTransform.sizeDelta = new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
-                    rectTransform.anchoredPosition = new Vector2(0f, pasoEntreCentros.y / 2f);
-                    break;
-                case CaraAcceso.SUR:
-                    rectTransform.sizeDelta = new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
-                    rectTransform.anchoredPosition = new Vector2(0f, -pasoEntreCentros.y / 2f);
-                    break;
-                case CaraAcceso.ESTE:
-                    rectTransform.sizeDelta = new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
-                    rectTransform.anchoredPosition = new Vector2(pasoEntreCentros.x / 2f, 0f);
-                    break;
-                case CaraAcceso.OESTE:
-                    rectTransform.sizeDelta = new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
-                    rectTransform.anchoredPosition = new Vector2(-pasoEntreCentros.x / 2f, 0f);
-                    break;
-            }
+            rectTransform.sizeDelta = esVertical
+                ? new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y)
+                : new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
 
             if (flechaAcceso != null)
             {
                 flechaAcceso.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
-            }
-        }
-
-        public void OnPointerClick(PointerEventData eventData)
-        {
-            RotarCaraAcceso();
-        }
-
-        private void RotarCaraAcceso()
-        {
-            CaraAcceso anterior = caraAcceso;
-            CeldaView secundariaAnterior = celdaSecundaria;
-
-            caraAcceso = (CaraAcceso)(((int)caraAcceso + 1) % 4);
-            CeldaView nuevaSecundaria = ObtenerCeldaSecundaria(celdaAncla);
-
-            bool invalida = nuevaSecundaria == null
-                || (nuevaSecundaria != secundariaAnterior && nuevaSecundaria.Ocupada);
-
-            if (invalida)
-            {
-                caraAcceso = anterior;
-                MensajesEditor.Mostrar(nuevaSecundaria == null
-                    ? "La plaza queda fuera de los límites de la grilla."
-                    : "La celda está ocupada.");
-                return;
-            }
-
-            secundariaAnterior.Liberar();
-            celdaSecundaria = nuevaSecundaria;
-            celdaSecundaria.Ocupar();
-            PosicionarSobreCeldas();
-        }
-
-        public void OnBeginDrag(PointerEventData eventData)
-        {
-            celdaAncla.Liberar();
-            celdaSecundaria.Liberar();
-            rectTransform.SetParent(canvasRaiz.transform, true);
-            canvasGroup.blocksRaycasts = false;
-        }
-
-        public void OnDrag(PointerEventData eventData)
-        {
-            rectTransform.position = eventData.position;
-        }
-
-        public void OnEndDrag(PointerEventData eventData)
-        {
-            canvasGroup.blocksRaycasts = true;
-            CeldaView celdaDestino = RaycastUtils.BuscarCeldaBajoPuntero(eventData);
-
-            if (celdaDestino == null)
-            {
-                // Soltada fuera de los límites de la grilla: quitar.
-                Destroy(gameObject);
-                return;
-            }
-
-            CeldaView anclaOriginal = celdaAncla;
-            if (!IntentarColocar(celdaDestino))
-            {
-                IntentarColocar(anclaOriginal);
             }
         }
     }
