@@ -19,4 +19,14 @@ namespace Sme.Models
         public int columnasGrilla;
         public string estado;
     }
+
+    // RF-22: un item de GET /proyectos.
+    [Serializable]
+    public class ProyectoResumenDto
+    {
+        public long proyectoId;
+        public string nombre;
+        public string estado;
+        public string fechaModificacion;
+    }
 }
