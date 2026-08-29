@@ -52,6 +52,14 @@ namespace Sme.Grid
             }
         }
 
+        // Reconstruir una pieza ya guardada (abrir proyecto) — sin arrastre, se
+        // asienta directo con la orientación que ya tenía.
+        public void ColocarDesdeGuardado(CeldaView ancla, CaraAcceso orientacionGuardada)
+        {
+            caraAcceso = orientacionGuardada;
+            IntentarColocar(ancla);
+        }
+
         // --- Arrastre desde el catálogo (pieza recién instanciada, todavía sin celda) ---
 
         public void ComenzarArrastreDesdeCatalogo()

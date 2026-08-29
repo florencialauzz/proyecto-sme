@@ -25,6 +25,7 @@ namespace Sme.UI
 
         [SerializeField] private UnityEvent alCerrarSesion;
         [SerializeField] private UnityEvent alCrearProyectoConExito;
+        [SerializeField] private UnityEvent alAbrirProyectoConExito;
 
         private void Awake()
         {
@@ -52,9 +53,31 @@ namespace Sme.UI
                     foreach (ProyectoResumenDto proyecto in proyectos)
                     {
                         GameObject item = Instantiate(prefabItemProyecto, contenedorProyectos);
-                        item.GetComponent<TMP_Text>().text =
-                            $"{proyecto.nombre} — {proyecto.estado} — {proyecto.fechaModificacion}";
+                        item.GetComponentInChildren<TMP_Text>().text = proyecto.nombre;
+
+                        long proyectoId = proyecto.proyectoId;
+                        item.GetComponent<Button>().onClick.AddListener(() => AbrirProyecto(proyectoId));
                     }
+                },
+                alFallar: (mensaje, codigo) => MostrarError(mensaje));
+        }
+
+        // Abrir un proyecto guardado para seguir editándolo: trae la grilla
+        // completa (GET /proyectos/{id}) y la deja lista para que GrillaGenerador
+        // la reconstruya al entrar a la escena Editor.
+        private void AbrirProyecto(long proyectoId)
+        {
+            ApiClient.ObtenerProyecto(
+                proyectoId,
+                alTenerExito: detalle =>
+                {
+                    ProyectoManager.GuardarProyecto(
+                        detalle.proyectoId,
+                        detalle.filasGrilla,
+                        detalle.columnasGrilla,
+                        detalle.estado,
+                        detalle.piezas);
+                    alAbrirProyectoConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) => MostrarError(mensaje));
         }

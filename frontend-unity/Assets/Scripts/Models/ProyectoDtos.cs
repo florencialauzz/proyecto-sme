@@ -29,4 +29,16 @@ namespace Sme.Models
         public string estado;
         public string fechaModificacion;
     }
+
+    // Abrir un proyecto guardado: GET /proyectos/{id}.
+    [Serializable]
+    public class ProyectoDetalleResponse
+    {
+        public long proyectoId;
+        public string nombre;
+        public int filasGrilla;
+        public int columnasGrilla;
+        public PiezaDto[] piezas;
+        public string estado;
+    }
 }

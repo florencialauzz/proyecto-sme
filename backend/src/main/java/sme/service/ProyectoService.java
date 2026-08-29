@@ -8,6 +8,8 @@ import sme.dto.CrearProyectoResponse;
 import sme.dto.GuardarGrillaRequest;
 import sme.dto.GuardarGrillaResponse;
 import sme.dto.PiezaRequest;
+import sme.dto.PiezaResponse;
+import sme.dto.ProyectoDetalleResponse;
 import sme.dto.ProyectoResumenResponse;
 import sme.entity.Pieza;
 import sme.entity.Proyecto;
@@ -57,6 +59,30 @@ public class ProyectoService {
                         proyecto.getEstado().name(),
                         proyecto.getFechaModificacion()))
                 .toList();
+    }
+
+    // Abrir un proyecto guardado para seguir editándolo (contrato ya preveía
+    // este endpoint en la sección 2, no estaba implementado).
+    public ProyectoDetalleResponse obtenerDetalle(Long usuarioId, Long proyectoId) {
+        Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
+
+        List<PiezaResponse> piezas = piezaRepository.findByProyectoId(proyecto.getId()).stream()
+                .map(pieza -> new PiezaResponse(
+                        pieza.getPiso(),
+                        pieza.getFila(),
+                        pieza.getColumna(),
+                        pieza.getTipo().name(),
+                        pieza.getCaraAcceso() == null ? null : pieza.getCaraAcceso().name(),
+                        pieza.getEsAccesible()))
+                .toList();
+
+        return new ProyectoDetalleResponse(
+                proyecto.getId(),
+                proyecto.getNombre(),
+                proyecto.getFilasGrilla(),
+                proyecto.getColumnasGrilla(),
+                piezas,
+                proyecto.getEstado().name());
     }
 
     // RF-13, RF-21: reemplaza la grilla completa del proyecto — se borran las

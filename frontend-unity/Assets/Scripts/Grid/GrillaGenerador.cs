@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using Sme.Managers;
+using Sme.Models;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,10 +12,14 @@ namespace Sme.Grid
     // usando los datos guardados en ProyectoManager. El posicionamiento lo
     // resuelve el GridLayoutGroup del contenedor, asignado en el Inspector —
     // este script solo instancia las celdas en orden de fila y columna.
+    //
+    // Si el proyecto se está reabriendo (no es uno recién creado), después
+    // reconstruye las piezas guardadas (ProyectoManager.PiezasACargar).
     public class GrillaGenerador : MonoBehaviour
     {
         [SerializeField] private RectTransform contenedorGrilla;
         [SerializeField] private GameObject prefabCelda;
+        [SerializeField] private GameObject prefabPlaza;
 
         // Registro estático de celdas por posición: lo necesita PiezaView (RF-13)
         // para encontrar la celda vecina de una pieza de 2 celdas, como Plaza
@@ -28,6 +34,7 @@ namespace Sme.Grid
         private void Start()
         {
             GenerarGrilla(ProyectoManager.FilasGrilla, ProyectoManager.ColumnasGrilla);
+            CargarPiezasGuardadas();
         }
 
         private void GenerarGrilla(int filas, int columnas)
@@ -53,6 +60,25 @@ namespace Sme.Grid
                     celdaView.Inicializar(fila, columna);
                     celdas[(fila, columna)] = celdaView;
                 }
+            }
+        }
+
+        // Solo pone piezas Plaza (único tipo que existe en Iteración 1) en su
+        // celda ancla, con la orientación guardada — celdas fuera de rango se
+        // ignoran en vez de romper todo, por si la grilla cambió de tamaño.
+        private void CargarPiezasGuardadas()
+        {
+            PiezaDto[] piezas = ProyectoManager.PiezasACargar;
+            if (piezas == null) return;
+
+            foreach (PiezaDto pieza in piezas)
+            {
+                CeldaView ancla = ObtenerCelda(pieza.fila, pieza.columna);
+                if (ancla == null) continue;
+
+                CaraAcceso orientacion = (CaraAcceso)Enum.Parse(typeof(CaraAcceso), pieza.caraAcceso);
+                GameObject instancia = Instantiate(prefabPlaza, contenedorGrilla);
+                instancia.GetComponent<PiezaView>().ColocarDesdeGuardado(ancla, orientacion);
             }
         }
 
