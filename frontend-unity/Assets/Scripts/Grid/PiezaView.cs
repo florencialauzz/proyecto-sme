@@ -48,7 +48,7 @@ namespace Sme.Grid
             if (estaArrastrando && Input.GetKeyDown(KeyCode.R))
             {
                 caraAcceso = (CaraAcceso)(((int)caraAcceso + 1) % 4);
-                AplicarTamanioYOrientacion();
+                AplicarTamanioLibre();
             }
         }
 
@@ -66,7 +66,7 @@ namespace Sme.Grid
         {
             estaArrastrando = true;
             canvasGroup.blocksRaycasts = false;
-            AplicarTamanioYOrientacion();
+            AplicarTamanioLibre();
         }
 
         public void SeguirPuntero(Vector2 posicionPantalla)
@@ -160,13 +160,12 @@ namespace Sme.Grid
             return true;
         }
 
+        // Define qué celda es la vecina en cada dirección — es una regla de
+        // topología (fila/columna), no una posición en pantalla. No necesita
+        // asumir hacia dónde "apunta" cada dirección visualmente: eso lo
+        // resuelve PosicionarSobreCeldas midiendo las celdas reales.
         private CeldaView ObtenerCeldaSecundaria(CeldaView ancla)
         {
-            // Asume que el GridLayoutGroup arranca en la esquina superior
-            // izquierda con eje horizontal (default de Unity): fila creciente
-            // = hacia abajo, columna creciente = hacia la derecha. Si en algún
-            // momento se cambia el Start Corner / Start Axis del contenedor,
-            // este mapeo hay que revisarlo.
             (int deltaFila, int deltaColumna) = caraAcceso switch
             {
                 CaraAcceso.NORTE => (-1, 0),
@@ -180,29 +179,36 @@ namespace Sme.Grid
         }
 
         // El rectángulo cubre desde el borde externo de la celda ancla hasta el
-        // borde externo de la celda secundaria — no un cuadrado centrado, sino
-        // un rectángulo de 2 celdas de largo en el eje de caraAcceso.
+        // borde externo de la celda secundaria. En vez de asumir a qué dirección
+        // de pantalla corresponde cada CaraAcceso (eso dependía de cómo esté
+        // configurado el Start Corner/Start Axis del GridLayoutGroup, y se
+        // rompía si no coincidía con lo asumido), se mide la posición real de
+        // ambas celdas — así funciona sin importar esa configuración.
         private void PosicionarSobreCeldas()
         {
+            RectTransform anclaRect = celdaAncla.GetComponent<RectTransform>();
+            RectTransform secundariaRect = celdaSecundaria.GetComponent<RectTransform>();
+            Vector2 offsetHaciaSecundaria = secundariaRect.anchoredPosition - anclaRect.anchoredPosition;
+
             rectTransform.SetParent(celdaAncla.transform, false);
-            AplicarTamanioYOrientacion();
+            rectTransform.anchoredPosition = offsetHaciaSecundaria / 2f;
 
-            Vector2 pasoEntreCentros = GrillaGenerador.TamanioCelda + GrillaGenerador.Espaciado;
+            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
+            Vector2 espaciado = GrillaGenerador.Espaciado;
+            bool esHorizontal = Mathf.Abs(offsetHaciaSecundaria.x) > Mathf.Abs(offsetHaciaSecundaria.y);
 
-            rectTransform.anchoredPosition = caraAcceso switch
-            {
-                CaraAcceso.NORTE => new Vector2(0f, pasoEntreCentros.y / 2f),
-                CaraAcceso.SUR => new Vector2(0f, -pasoEntreCentros.y / 2f),
-                CaraAcceso.ESTE => new Vector2(pasoEntreCentros.x / 2f, 0f),
-                CaraAcceso.OESTE => new Vector2(-pasoEntreCentros.x / 2f, 0f),
-                _ => Vector2.zero
-            };
+            rectTransform.sizeDelta = esHorizontal
+                ? new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y)
+                : new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
+
+            AplicarFlecha();
         }
 
-        // Tamaño real (en unidades de la grilla) y flecha de orientación. Se usa
-        // tanto para la pieza ya asentada como para el "fantasma" en pleno
-        // arrastre (todavía sin celda) — por eso no depende de celdaAncla.
-        private void AplicarTamanioYOrientacion()
+        // Tamaño aproximado mientras se arrastra y todavía no hay celdas reales
+        // contra las que medir (recién instanciada desde el catálogo, o una ya
+        // colocada que se está moviendo) — es solo la vista previa. El tamaño
+        // definitivo se recalcula en PosicionarSobreCeldas al soltar.
+        private void AplicarTamanioLibre()
         {
             Vector2 tamCelda = GrillaGenerador.TamanioCelda;
             Vector2 espaciado = GrillaGenerador.Espaciado;
@@ -212,6 +218,11 @@ namespace Sme.Grid
                 ? new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y)
                 : new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
 
+            AplicarFlecha();
+        }
+
+        private void AplicarFlecha()
+        {
             if (flechaAcceso != null)
             {
                 flechaAcceso.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
