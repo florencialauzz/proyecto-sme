@@ -1,4 +1,3 @@
-using Sme.Managers;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -34,21 +33,16 @@ namespace Sme.Grid
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            piezaEnCurso.GetComponent<CanvasGroup>().blocksRaycasts = true;
             CeldaView celdaDestino = RaycastUtils.BuscarCeldaBajoPuntero(eventData);
 
-            if (celdaDestino == null || celdaDestino.Ocupada)
+            bool colocada = celdaDestino != null
+                && piezaEnCurso.GetComponent<PiezaView>().IntentarColocar(celdaDestino);
+
+            if (!colocada)
             {
-                if (celdaDestino != null)
-                {
-                    MensajesEditor.Mostrar("La celda está ocupada.");
-                }
-
                 Destroy(piezaEnCurso.gameObject);
-                return;
             }
-
-            piezaEnCurso.GetComponent<CanvasGroup>().blocksRaycasts = true;
-            piezaEnCurso.GetComponent<PiezaView>().Inicializar(celdaDestino);
         }
     }
 }

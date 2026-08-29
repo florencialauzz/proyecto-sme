@@ -7,6 +7,13 @@ namespace Sme.Grid
     // RF-13: pieza Plaza ya colocada en la grilla. Se puede mover (arrastrar a
     // otra celda), rotar (clic, cambia la cara de acceso) o quitar (arrastrar
     // fuera de los límites de la grilla).
+    //
+    // Una Plaza ocupa 2 celdas pero se persiste como una sola fila en su celda
+    // "ancla" (dominio/modelo-clases.md) — la segunda celda se infiere de
+    // caraAcceso. Por eso el rectángulo cambia de forma (vertical u horizontal)
+    // según la orientación, en vez de ser un cuadrado fijo: así se ve realmente
+    // qué 2 celdas ocupa. Rotar cambia cuál es la segunda celda, así que
+    // revalida la colocación igual que un movimiento.
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(CanvasGroup))]
     public class PiezaView : MonoBehaviour, IPointerClickHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
@@ -14,7 +21,8 @@ namespace Sme.Grid
         [SerializeField] private RectTransform flechaAcceso;
 
         private CaraAcceso caraAcceso = CaraAcceso.NORTE;
-        private CeldaView celdaActual;
+        private CeldaView celdaAncla;
+        private CeldaView celdaSecundaria;
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
         private Canvas canvasRaiz;
@@ -26,15 +34,83 @@ namespace Sme.Grid
             canvasRaiz = GetComponentInParent<Canvas>().rootCanvas;
         }
 
-        // Deja la pieza asentada en una celda: la marca ocupada y la centra
-        // dentro de sus límites. La usan tanto la colocación inicial (desde
-        // CatalogoItemPlaza) como un movimiento válido (OnEndDrag).
-        public void Inicializar(CeldaView celda)
+        // Intenta asentar la pieza con celdaAncla como ancla y la celda vecina
+        // (según caraAcceso) como segunda celda. Si alguna de las dos está
+        // ocupada o la segunda queda fuera de la grilla, no cambia nada y
+        // devuelve false — quien llama decide qué hacer (revertir, destruir).
+        public bool IntentarColocar(CeldaView nuevaAncla)
         {
-            celdaActual = celda;
-            celda.Ocupar();
-            rectTransform.SetParent(celda.transform, false);
-            rectTransform.anchoredPosition = Vector2.zero;
+            CeldaView nuevaSecundaria = ObtenerCeldaSecundaria(nuevaAncla);
+
+            if (nuevaSecundaria == null)
+            {
+                MensajesEditor.Mostrar("La plaza queda fuera de los límites de la grilla.");
+                return false;
+            }
+
+            if (nuevaAncla.Ocupada || nuevaSecundaria.Ocupada)
+            {
+                MensajesEditor.Mostrar("La celda está ocupada.");
+                return false;
+            }
+
+            celdaAncla = nuevaAncla;
+            celdaSecundaria = nuevaSecundaria;
+            celdaAncla.Ocupar();
+            celdaSecundaria.Ocupar();
+            PosicionarSobreCeldas();
+            return true;
+        }
+
+        private CeldaView ObtenerCeldaSecundaria(CeldaView ancla)
+        {
+            (int deltaFila, int deltaColumna) = caraAcceso switch
+            {
+                CaraAcceso.NORTE => (-1, 0),
+                CaraAcceso.SUR => (1, 0),
+                CaraAcceso.ESTE => (0, 1),
+                CaraAcceso.OESTE => (0, -1),
+                _ => (0, 0)
+            };
+
+            return GrillaGenerador.ObtenerCelda(ancla.Fila + deltaFila, ancla.Columna + deltaColumna);
+        }
+
+        // El rectángulo cubre desde el borde externo de la celda ancla hasta el
+        // borde externo de la celda secundaria — no un cuadrado centrado, sino
+        // un rectángulo de 2 celdas de largo en el eje de caraAcceso.
+        private void PosicionarSobreCeldas()
+        {
+            rectTransform.SetParent(celdaAncla.transform, false);
+
+            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
+            Vector2 espaciado = GrillaGenerador.Espaciado;
+            Vector2 pasoEntreCentros = tamCelda + espaciado;
+
+            switch (caraAcceso)
+            {
+                case CaraAcceso.NORTE:
+                    rectTransform.sizeDelta = new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
+                    rectTransform.anchoredPosition = new Vector2(0f, pasoEntreCentros.y / 2f);
+                    break;
+                case CaraAcceso.SUR:
+                    rectTransform.sizeDelta = new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
+                    rectTransform.anchoredPosition = new Vector2(0f, -pasoEntreCentros.y / 2f);
+                    break;
+                case CaraAcceso.ESTE:
+                    rectTransform.sizeDelta = new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
+                    rectTransform.anchoredPosition = new Vector2(pasoEntreCentros.x / 2f, 0f);
+                    break;
+                case CaraAcceso.OESTE:
+                    rectTransform.sizeDelta = new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
+                    rectTransform.anchoredPosition = new Vector2(-pasoEntreCentros.x / 2f, 0f);
+                    break;
+            }
+
+            if (flechaAcceso != null)
+            {
+                flechaAcceso.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
+            }
         }
 
         public void OnPointerClick(PointerEventData eventData)
@@ -44,17 +120,34 @@ namespace Sme.Grid
 
         private void RotarCaraAcceso()
         {
-            caraAcceso = (CaraAcceso)(((int)caraAcceso + 1) % 4);
+            CaraAcceso anterior = caraAcceso;
+            CeldaView secundariaAnterior = celdaSecundaria;
 
-            if (flechaAcceso != null)
+            caraAcceso = (CaraAcceso)(((int)caraAcceso + 1) % 4);
+            CeldaView nuevaSecundaria = ObtenerCeldaSecundaria(celdaAncla);
+
+            bool invalida = nuevaSecundaria == null
+                || (nuevaSecundaria != secundariaAnterior && nuevaSecundaria.Ocupada);
+
+            if (invalida)
             {
-                flechaAcceso.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
+                caraAcceso = anterior;
+                MensajesEditor.Mostrar(nuevaSecundaria == null
+                    ? "La plaza queda fuera de los límites de la grilla."
+                    : "La celda está ocupada.");
+                return;
             }
+
+            secundariaAnterior.Liberar();
+            celdaSecundaria = nuevaSecundaria;
+            celdaSecundaria.Ocupar();
+            PosicionarSobreCeldas();
         }
 
         public void OnBeginDrag(PointerEventData eventData)
         {
-            celdaActual.Liberar();
+            celdaAncla.Liberar();
+            celdaSecundaria.Liberar();
             rectTransform.SetParent(canvasRaiz.transform, true);
             canvasGroup.blocksRaycasts = false;
         }
@@ -76,14 +169,11 @@ namespace Sme.Grid
                 return;
             }
 
-            if (celdaDestino.Ocupada && celdaDestino != celdaActual)
+            CeldaView anclaOriginal = celdaAncla;
+            if (!IntentarColocar(celdaDestino))
             {
-                MensajesEditor.Mostrar("La celda está ocupada.");
-                Inicializar(celdaActual);
-                return;
+                IntentarColocar(anclaOriginal);
             }
-
-            Inicializar(celdaDestino);
         }
     }
 }
