@@ -60,5 +60,11 @@ namespace Sme.Grid
         {
             return celdas.TryGetValue((fila, columna), out CeldaView celda) ? celda : null;
         }
+
+        // RF-21: recorrer toda la grilla para juntar las piezas colocadas.
+        public static IEnumerable<CeldaView> ObtenerTodasLasCeldas()
+        {
+            return celdas.Values;
+        }
     }
 }

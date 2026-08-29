@@ -20,10 +20,30 @@ namespace Sme.Managers
             Action<TResponse> alTenerExito,
             Action<string, string> alFallar)
         {
+            EnviarConCuerpo(UnityWebRequest.kHttpVerbPOST, ruta, cuerpo, alTenerExito, alFallar);
+        }
+
+        // RF-21: PUT /grilla reemplaza la grilla completa cada vez.
+        public static void Put<TRequest, TResponse>(
+            string ruta,
+            TRequest cuerpo,
+            Action<TResponse> alTenerExito,
+            Action<string, string> alFallar)
+        {
+            EnviarConCuerpo(UnityWebRequest.kHttpVerbPUT, ruta, cuerpo, alTenerExito, alFallar);
+        }
+
+        private static void EnviarConCuerpo<TRequest, TResponse>(
+            string verbo,
+            string ruta,
+            TRequest cuerpo,
+            Action<TResponse> alTenerExito,
+            Action<string, string> alFallar)
+        {
             string json = JsonUtility.ToJson(cuerpo);
             byte[] cuerpoBytes = Encoding.UTF8.GetBytes(json);
 
-            var request = new UnityWebRequest(BaseUrl + ruta, UnityWebRequest.kHttpVerbPOST)
+            var request = new UnityWebRequest(BaseUrl + ruta, verbo)
             {
                 uploadHandler = new UploadHandlerRaw(cuerpoBytes),
                 downloadHandler = new DownloadHandlerBuffer()
@@ -51,6 +71,45 @@ namespace Sme.Managers
 
                 request.Dispose();
             };
+        }
+
+        // RF-22: GET /proyectos. Método dedicado (no un Get<T> genérico) porque
+        // JsonUtility no puede parsear un array JSON de primer nivel — hay que
+        // envolverlo en un objeto antes de deserializar, y es más claro hacerlo
+        // una vez acá que en cada lugar que liste algo.
+        public static void ListarProyectos(
+            Action<ProyectoResumenDto[]> alTenerExito,
+            Action<string, string> alFallar)
+        {
+            var request = UnityWebRequest.Get(BaseUrl + "/proyectos");
+
+            if (SesionManager.HaySesionActiva)
+            {
+                request.SetRequestHeader("Authorization", "Bearer " + SesionManager.Token);
+            }
+
+            request.SendWebRequest().completed += _ =>
+            {
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    string jsonEnvuelto = "{\"proyectos\":" + request.downloadHandler.text + "}";
+                    ProyectoResumenListaEnvoltorio envoltorio =
+                        JsonUtility.FromJson<ProyectoResumenListaEnvoltorio>(jsonEnvuelto);
+                    alTenerExito(envoltorio.proyectos);
+                }
+                else
+                {
+                    NotificarError(request.downloadHandler.text, alFallar);
+                }
+
+                request.Dispose();
+            };
+        }
+
+        [Serializable]
+        private class ProyectoResumenListaEnvoltorio
+        {
+            public ProyectoResumenDto[] proyectos;
         }
 
         private static void NotificarError(string cuerpoRespuesta, Action<string, string> alFallar)
