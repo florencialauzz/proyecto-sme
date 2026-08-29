@@ -1,5 +1,6 @@
 using Sme.Managers;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Sme.Grid
 {
@@ -20,6 +21,12 @@ namespace Sme.Grid
 
         private void GenerarGrilla(int filas, int columnas)
         {
+            // Fija la cantidad de columnas para que el GridLayoutGroup no dependa
+            // del ancho del contenedor para decidir dónde wrappear la fila.
+            GridLayoutGroup layout = contenedorGrilla.GetComponent<GridLayoutGroup>();
+            layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            layout.constraintCount = columnas;
+
             for (int fila = 0; fila < filas; fila++)
             {
                 for (int columna = 0; columna < columnas; columna++)
