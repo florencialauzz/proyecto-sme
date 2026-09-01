@@ -14,6 +14,7 @@ import sme.dto.CrearProyectoRequest;
 import sme.dto.CrearProyectoResponse;
 import sme.dto.GuardarGrillaRequest;
 import sme.dto.GuardarGrillaResponse;
+import sme.dto.ProyectoDetalleResponse;
 import sme.dto.ProyectoResumenResponse;
 import sme.service.ProyectoService;
 
@@ -42,6 +43,13 @@ public class ProyectoController {
     public ResponseEntity<List<ProyectoResumenResponse>> listar(Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(proyectoService.listar(usuarioId));
+    }
+
+    // Abrir un proyecto guardado para seguir editándolo.
+    @GetMapping("/{id}")
+    public ResponseEntity<ProyectoDetalleResponse> obtenerDetalle(@PathVariable Long id, Authentication authentication) {
+        Long usuarioId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(proyectoService.obtenerDetalle(usuarioId, id));
     }
 
     // RF-13, RF-21

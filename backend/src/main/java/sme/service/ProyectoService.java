@@ -8,6 +8,8 @@ import sme.dto.CrearProyectoResponse;
 import sme.dto.GuardarGrillaRequest;
 import sme.dto.GuardarGrillaResponse;
 import sme.dto.PiezaRequest;
+import sme.dto.PiezaResponse;
+import sme.dto.ProyectoDetalleResponse;
 import sme.dto.ProyectoResumenResponse;
 import sme.entity.Pieza;
 import sme.entity.Proyecto;
@@ -59,13 +61,43 @@ public class ProyectoService {
                 .toList();
     }
 
+    // Abrir un proyecto guardado para seguir editándolo (contrato ya preveía
+    // este endpoint en la sección 2, no estaba implementado).
+    public ProyectoDetalleResponse obtenerDetalle(Long usuarioId, Long proyectoId) {
+        Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
+
+        List<PiezaResponse> piezas = piezaRepository.findByProyectoId(proyecto.getId()).stream()
+                .map(pieza -> new PiezaResponse(
+                        pieza.getPiso(),
+                        pieza.getFila(),
+                        pieza.getColumna(),
+                        pieza.getTipo().name(),
+                        pieza.getCaraAcceso() == null ? null : pieza.getCaraAcceso().name(),
+                        pieza.getEsAccesible()))
+                .toList();
+
+        return new ProyectoDetalleResponse(
+                proyecto.getId(),
+                proyecto.getNombre(),
+                proyecto.getFilasGrilla(),
+                proyecto.getColumnasGrilla(),
+                piezas,
+                proyecto.getEstado().name());
+    }
+
     // RF-13, RF-21: reemplaza la grilla completa del proyecto — se borran las
     // piezas anteriores y se insertan las nuevas en la misma transacción.
     @Transactional
     public GuardarGrillaResponse guardarGrilla(Long usuarioId, Long proyectoId, GuardarGrillaRequest request) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
+        // flush() fuerza el DELETE a ejecutarse ya, antes del saveAll: sin esto,
+        // Hibernate ordena el flush por tipo de acción (todos los INSERT antes
+        // que los DELETE, sin importar el orden en que se llamaron acá), y una
+        // pieza reinsertada en la misma celda que tenía antes choca con la fila
+        // vieja todavía no borrada (uq_pieza_celda).
         piezaRepository.deleteByProyectoId(proyecto.getId());
+        piezaRepository.flush();
 
         List<Pieza> piezas = request.piezas().stream()
                 .map(dto -> aPieza(proyecto.getId(), dto))

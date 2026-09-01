@@ -112,6 +112,38 @@ namespace Sme.Managers
             public ProyectoResumenDto[] proyectos;
         }
 
+        // Abrir un proyecto guardado: GET /proyectos/{id}. Acá sí alcanza con
+        // JsonUtility.FromJson directo — la limitación es solo con arrays de
+        // primer nivel, un objeto no la tiene.
+        public static void ObtenerProyecto(
+            long proyectoId,
+            Action<ProyectoDetalleResponse> alTenerExito,
+            Action<string, string> alFallar)
+        {
+            var request = UnityWebRequest.Get(BaseUrl + "/proyectos/" + proyectoId);
+
+            if (SesionManager.HaySesionActiva)
+            {
+                request.SetRequestHeader("Authorization", "Bearer " + SesionManager.Token);
+            }
+
+            request.SendWebRequest().completed += _ =>
+            {
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    ProyectoDetalleResponse respuesta =
+                        JsonUtility.FromJson<ProyectoDetalleResponse>(request.downloadHandler.text);
+                    alTenerExito(respuesta);
+                }
+                else
+                {
+                    NotificarError(request.downloadHandler.text, alFallar);
+                }
+
+                request.Dispose();
+            };
+        }
+
         private static void NotificarError(string cuerpoRespuesta, Action<string, string> alFallar)
         {
             // RNF-04: los errores internos no se muestran tal cual, solo mediante notificación.

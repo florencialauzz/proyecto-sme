@@ -20,16 +20,23 @@ namespace Sme.UI
         [SerializeField] private TMP_Text textoError;
 
         [SerializeField] private RectTransform contenedorProyectos;
+        [SerializeField] private ToggleGroup grupoProyectos;
         [SerializeField] private GameObject prefabItemProyecto;
         [SerializeField] private TMP_Text textoSinProyectos;
+        [SerializeField] private Button botonAbrirProyecto;
 
         [SerializeField] private UnityEvent alCerrarSesion;
         [SerializeField] private UnityEvent alCrearProyectoConExito;
+        [SerializeField] private UnityEvent alAbrirProyectoConExito;
+
+        private long? proyectoSeleccionadoId;
 
         private void Awake()
         {
             botonCerrarSesion.onClick.AddListener(CerrarSesion);
             botonCrearProyecto.onClick.AddListener(CrearProyecto);
+            botonAbrirProyecto.onClick.AddListener(AbrirProyectoSeleccionado);
+            botonAbrirProyecto.interactable = false;
             OcultarError();
             CargarProyectos();
         }
@@ -48,15 +55,64 @@ namespace Sme.UI
                     }
 
                     textoSinProyectos.gameObject.SetActive(proyectos.Length == 0);
+                    proyectoSeleccionadoId = null;
+                    botonAbrirProyecto.interactable = false;
 
                     foreach (ProyectoResumenDto proyecto in proyectos)
                     {
                         GameObject item = Instantiate(prefabItemProyecto, contenedorProyectos);
-                        item.GetComponent<TMP_Text>().text =
-                            $"{proyecto.nombre} — {proyecto.estado} — {proyecto.fechaModificacion}";
+                        item.GetComponentInChildren<TMP_Text>().text = proyecto.nombre;
+
+                        Toggle toggle = item.GetComponent<Toggle>();
+                        toggle.group = grupoProyectos;
+
+                        long proyectoId = proyecto.proyectoId;
+                        toggle.onValueChanged.AddListener(seleccionado => SeleccionarProyecto(seleccionado, proyectoId));
                     }
                 },
                 alFallar: (mensaje, codigo) => MostrarError(mensaje));
+        }
+
+        // El ToggleGroup ya garantiza que como mucho uno esté prendido — acá
+        // solo hace falta recordar cuál, para el botón Abrir.
+        private void SeleccionarProyecto(bool seleccionado, long proyectoId)
+        {
+            if (!seleccionado) return;
+
+            proyectoSeleccionadoId = proyectoId;
+            botonAbrirProyecto.interactable = true;
+        }
+
+        private void AbrirProyectoSeleccionado()
+        {
+            if (!proyectoSeleccionadoId.HasValue) return;
+            AbrirProyecto(proyectoSeleccionadoId.Value);
+        }
+
+        // Abrir un proyecto guardado para seguir editándolo: trae la grilla
+        // completa (GET /proyectos/{id}) y la deja lista para que GrillaGenerador
+        // la reconstruya al entrar a la escena Editor.
+        private void AbrirProyecto(long proyectoId)
+        {
+            botonAbrirProyecto.interactable = false;
+
+            ApiClient.ObtenerProyecto(
+                proyectoId,
+                alTenerExito: detalle =>
+                {
+                    ProyectoManager.GuardarProyecto(
+                        detalle.proyectoId,
+                        detalle.filasGrilla,
+                        detalle.columnasGrilla,
+                        detalle.estado,
+                        detalle.piezas);
+                    alAbrirProyectoConExito?.Invoke();
+                },
+                alFallar: (mensaje, codigo) =>
+                {
+                    botonAbrirProyecto.interactable = true;
+                    MostrarError(mensaje);
+                });
         }
 
         private void CerrarSesion()

@@ -1,3 +1,5 @@
+using Sme.Models;
+
 namespace Sme.Managers
 {
     // Datos del proyecto actualmente abierto, en memoria (mismo criterio que
@@ -10,12 +12,19 @@ namespace Sme.Managers
         public static int ColumnasGrilla { get; private set; }
         public static string Estado { get; private set; }
 
-        public static void GuardarProyecto(long proyectoId, int filasGrilla, int columnasGrilla, string estado)
+        // Piezas ya guardadas de un proyecto que se está reabriendo (null si es
+        // un proyecto recién creado, sin nada todavía) — GrillaGenerador las lee
+        // para reconstruir la grilla al entrar a la escena Editor.
+        public static PiezaDto[] PiezasACargar { get; private set; }
+
+        public static void GuardarProyecto(long proyectoId, int filasGrilla, int columnasGrilla, string estado,
+            PiezaDto[] piezasACargar = null)
         {
             ProyectoId = proyectoId;
             FilasGrilla = filasGrilla;
             ColumnasGrilla = columnasGrilla;
             Estado = estado;
+            PiezasACargar = piezasACargar;
         }
 
         public static void CerrarProyecto()
@@ -24,6 +33,7 @@ namespace Sme.Managers
             FilasGrilla = 0;
             ColumnasGrilla = 0;
             Estado = null;
+            PiezasACargar = null;
         }
     }
 }
