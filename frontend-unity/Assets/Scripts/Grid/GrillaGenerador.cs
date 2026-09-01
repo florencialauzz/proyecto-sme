@@ -34,6 +34,14 @@ namespace Sme.Grid
         private void Start()
         {
             GenerarGrilla(ProyectoManager.FilasGrilla, ProyectoManager.ColumnasGrilla);
+
+            // El GridLayoutGroup recién ubica las celdas en su rebuild diferido
+            // (antes de dibujar el frame), no apenas se instancian. Sin este
+            // forzado, PiezaView.PosicionarSobreCeldas mide anchoredPosition
+            // todavía en (0,0) para todas las celdas al reconstruir piezas
+            // guardadas, y calcula mal tamaño y posición.
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contenedorGrilla);
+
             CargarPiezasGuardadas();
         }
 

@@ -1,6 +1,7 @@
 using Sme.Managers;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Sme.Grid
 {
@@ -29,6 +30,7 @@ namespace Sme.Grid
         public CaraAcceso CaraAcceso => caraAcceso;
 
         private CaraAcceso caraAcceso = CaraAcceso.NORTE;
+        private CaraAcceso caraAccesoOriginal;
         private CeldaView celdaAncla;
         private CeldaView celdaSecundaria;
         private bool estaArrastrando;
@@ -41,6 +43,22 @@ namespace Sme.Grid
             rectTransform = GetComponent<RectTransform>();
             canvasGroup = GetComponent<CanvasGroup>();
             canvasRaiz = GetComponentInParent<Canvas>().rootCanvas;
+
+            // La pieza es hija de celdaAncla (para que RecolectarPiezas sepa
+            // cuál es la celda ancla al guardar), pero eso ata su orden de
+            // dibujo al orden de hermanos de las celdas dentro de
+            // contenedorGrilla — que el GridLayoutGroup necesita intacto para
+            // ubicarlas, no se puede reordenar para resolver esto. Un Canvas
+            // propio con sorting forzado la dibuja siempre encima de las
+            // celdas sin tocar esa jerarquía.
+            Canvas canvasPropio = gameObject.AddComponent<Canvas>();
+            canvasPropio.overrideSorting = true;
+            canvasPropio.sortingOrder = 1;
+
+            // Un Canvas propio re-registra los gráficos de la pieza bajo sí
+            // mismo en vez de bajo canvasRaiz — sin un GraphicRaycaster acá, el
+            // raycaster del Canvas raíz deja de verla y el arrastre se rompe.
+            gameObject.AddComponent<GraphicRaycaster>();
         }
 
         private void Update()
@@ -97,6 +115,7 @@ namespace Sme.Grid
 
         public void OnBeginDrag(PointerEventData eventData)
         {
+            caraAccesoOriginal = caraAcceso;
             celdaAncla.Liberar();
             celdaSecundaria.Liberar();
             estaArrastrando = true;
@@ -126,6 +145,13 @@ namespace Sme.Grid
             CeldaView anclaOriginal = celdaAncla;
             if (!IntentarColocar(celdaDestino))
             {
+                // Si se rotó durante el arrastre, la orientación nueva puede
+                // no ser válida en la celda original (por ejemplo, la segunda
+                // celda con esa rotación cae sobre otra pieza) — se revierte
+                // también la orientación, no solo la celda, para garantizar
+                // que el estado al que se vuelve es el mismo que ya era
+                // válido antes de empezar a arrastrar.
+                caraAcceso = caraAccesoOriginal;
                 IntentarColocar(anclaOriginal);
             }
         }

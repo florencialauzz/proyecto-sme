@@ -91,7 +91,13 @@ public class ProyectoService {
     public GuardarGrillaResponse guardarGrilla(Long usuarioId, Long proyectoId, GuardarGrillaRequest request) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
+        // flush() fuerza el DELETE a ejecutarse ya, antes del saveAll: sin esto,
+        // Hibernate ordena el flush por tipo de acción (todos los INSERT antes
+        // que los DELETE, sin importar el orden en que se llamaron acá), y una
+        // pieza reinsertada en la misma celda que tenía antes choca con la fila
+        // vieja todavía no borrada (uq_pieza_celda).
         piezaRepository.deleteByProyectoId(proyecto.getId());
+        piezaRepository.flush();
 
         List<Pieza> piezas = request.piezas().stream()
                 .map(dto -> aPieza(proyecto.getId(), dto))

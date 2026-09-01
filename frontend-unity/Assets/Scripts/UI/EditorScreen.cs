@@ -5,6 +5,7 @@ using Sme.Managers;
 using Sme.Models;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace Sme.UI
@@ -17,6 +18,9 @@ namespace Sme.UI
 
         [SerializeField] private TMP_Text textoMensaje;
         [SerializeField] private Button botonGuardar;
+        [SerializeField] private Button botonSalir;
+
+        [SerializeField] private UnityEvent alSalir;
 
         private Coroutine ocultamientoEnCurso;
 
@@ -25,6 +29,7 @@ namespace Sme.UI
             MensajesEditor.Registrar(this);
             textoMensaje.gameObject.SetActive(false);
             botonGuardar.onClick.AddListener(GuardarProyecto);
+            botonSalir.onClick.AddListener(Salir);
         }
 
         public void MostrarMensaje(string mensaje)
@@ -69,6 +74,13 @@ namespace Sme.UI
                     botonGuardar.interactable = true;
                     MostrarMensaje(mensaje);
                 });
+        }
+
+        // El botón no guarda solo: si hay cambios sin guardar, es el usuario
+        // quien decide si vuelve a Inicio de todos modos.
+        private void Salir()
+        {
+            alSalir?.Invoke();
         }
 
         // Recorre toda la grilla y arma una fila por cada Plaza colocada, en su
