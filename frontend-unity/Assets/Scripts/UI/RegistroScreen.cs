@@ -1,6 +1,7 @@
 using Sme.Managers;
 using Sme.Models;
 using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -14,7 +15,7 @@ namespace Sme.UI
         [SerializeField] private TMP_InputField campoNombreUsuario;
         [SerializeField] private TMP_InputField campoContrasena;
         [SerializeField] private TMP_InputField campoConfirmacionContrasena;
-        [SerializeField] private TMP_InputField campoPreguntaSeguridad;
+        [SerializeField] private TMP_Dropdown campoPreguntaSeguridad;
         [SerializeField] private TMP_InputField campoRespuestaSeguridad;
         [SerializeField] private Button botonRegistrar;
         [SerializeField] private TMP_Text textoError;
@@ -23,8 +24,17 @@ namespace Sme.UI
 
         private void Awake()
         {
+            CargarOpcionesPreguntaSeguridad();
             botonRegistrar.onClick.AddListener(Registrar);
             OcultarError();
+        }
+
+        // El usuario elige de una picklist en vez de escribir su propia pregunta
+        // de seguridad — ver Models/PreguntasSeguridad.cs.
+        private void CargarOpcionesPreguntaSeguridad()
+        {
+            campoPreguntaSeguridad.ClearOptions();
+            campoPreguntaSeguridad.AddOptions(new List<string>(PreguntasSeguridad.Opciones));
         }
 
         private void Registrar()
@@ -37,7 +47,7 @@ namespace Sme.UI
                 nombreUsuario = campoNombreUsuario.text,
                 contrasena = campoContrasena.text,
                 confirmacionContrasena = campoConfirmacionContrasena.text,
-                preguntaSeguridad = campoPreguntaSeguridad.text,
+                preguntaSeguridad = campoPreguntaSeguridad.options[campoPreguntaSeguridad.value].text,
                 respuestaSeguridad = campoRespuestaSeguridad.text
             };
 

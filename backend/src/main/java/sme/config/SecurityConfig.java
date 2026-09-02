@@ -27,7 +27,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/ping").permitAll()
+                        // Solo estas rutas de auth son públicas — RF-04 (cambiar contraseña)
+                        // y RF-05 (eliminar cuenta) requieren sesión iniciada, por eso no
+                        // se puede usar un wildcard "/api/auth/**" acá.
+                        .requestMatchers("/api/auth/registro", "/api/auth/login",
+                                "/api/auth/pregunta-seguridad", "/api/auth/recuperar-contrasena",
+                                "/api/ping").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
