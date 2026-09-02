@@ -33,6 +33,17 @@ namespace Sme.Managers
             EnviarConCuerpo(UnityWebRequest.kHttpVerbPUT, ruta, cuerpo, alTenerExito, alFallar);
         }
 
+        // RF-05: DELETE /auth/cuenta necesita mandar la contraseña en el cuerpo,
+        // por eso reutiliza EnviarConCuerpo en vez de UnityWebRequest.Delete (que no acepta body).
+        public static void Delete<TRequest, TResponse>(
+            string ruta,
+            TRequest cuerpo,
+            Action<TResponse> alTenerExito,
+            Action<string, string> alFallar)
+        {
+            EnviarConCuerpo(UnityWebRequest.kHttpVerbDELETE, ruta, cuerpo, alTenerExito, alFallar);
+        }
+
         private static void EnviarConCuerpo<TRequest, TResponse>(
             string verbo,
             string ruta,
@@ -133,6 +144,34 @@ namespace Sme.Managers
                 {
                     ProyectoDetalleResponse respuesta =
                         JsonUtility.FromJson<ProyectoDetalleResponse>(request.downloadHandler.text);
+                    alTenerExito(respuesta);
+                }
+                else
+                {
+                    NotificarError(request.downloadHandler.text, alFallar);
+                }
+
+                request.Dispose();
+            };
+        }
+
+        // RF-03, punto 5: se consulta antes de pedir la respuesta, para mostrar la
+        // pregunta asociada al nombre de usuario ingresado. Ruta pública, no manda
+        // Authorization (todavía no hay sesión en este punto del flujo).
+        public static void ObtenerPreguntaSeguridad(
+            string nombreUsuario,
+            Action<PreguntaSeguridadResponse> alTenerExito,
+            Action<string, string> alFallar)
+        {
+            var request = UnityWebRequest.Get(BaseUrl + "/auth/pregunta-seguridad?nombreUsuario="
+                + UnityWebRequest.EscapeURL(nombreUsuario));
+
+            request.SendWebRequest().completed += _ =>
+            {
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    PreguntaSeguridadResponse respuesta =
+                        JsonUtility.FromJson<PreguntaSeguridadResponse>(request.downloadHandler.text);
                     alTenerExito(respuesta);
                 }
                 else
