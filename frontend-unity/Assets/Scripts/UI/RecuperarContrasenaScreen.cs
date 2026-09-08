@@ -36,6 +36,13 @@ namespace Sme.UI
         {
             botonContinuar.onClick.AddListener(BuscarPreguntaSeguridad);
             botonRecuperar.onClick.AddListener(RecuperarContrasena);
+        }
+
+        // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
+        // alcanza para limpiar un error (ni el paso en el que quedó) de una
+        // visita anterior — OnEnable corre cada vez que el panel se reactiva.
+        private void OnEnable()
+        {
             MostrarPanelUsuario();
         }
 

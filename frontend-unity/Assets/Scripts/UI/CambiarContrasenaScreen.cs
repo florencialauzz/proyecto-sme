@@ -23,6 +23,13 @@ namespace Sme.UI
         private void Awake()
         {
             botonCambiarContrasena.onClick.AddListener(CambiarContrasena);
+        }
+
+        // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
+        // alcanza para limpiar un error que quedó de una visita anterior —
+        // OnEnable corre cada vez que el panel se reactiva.
+        private void OnEnable()
+        {
             OcultarError();
         }
 
