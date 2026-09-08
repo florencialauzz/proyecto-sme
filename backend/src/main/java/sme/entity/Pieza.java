@@ -4,11 +4,16 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 // Espejo de contratos/esquema-bd.md. Solo las columnas que ya se usan en
 // Iteración 1 (Plaza: piso, fila, columna, caraAcceso, esAccesible) —
@@ -26,6 +31,15 @@ public class Pieza {
 
     @Column(name = "proyecto_id", nullable = false)
     private Long proyectoId;
+
+    // Mapea la misma columna que proyectoId, solo de lectura: existe unicamente
+    // para que Hibernate genere la foreign key con ON DELETE CASCADE
+    // (ver contratos/esquema-bd.md). Las lecturas/escrituras de la relacion
+    // siguen haciendose a traves de proyectoId, no de este campo.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "proyecto_id", insertable = false, updatable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private Proyecto proyecto;
 
     @Column(nullable = false)
     private Integer piso;

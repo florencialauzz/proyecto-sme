@@ -37,8 +37,15 @@ namespace Sme.UI
             botonCrearProyecto.onClick.AddListener(CrearProyecto);
             botonAbrirProyecto.onClick.AddListener(AbrirProyectoSeleccionado);
             botonAbrirProyecto.interactable = false;
-            OcultarError();
             CargarProyectos();
+        }
+
+        // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
+        // alcanza para limpiar un error que quedó de una visita anterior —
+        // OnEnable corre cada vez que el panel se reactiva.
+        private void OnEnable()
+        {
+            OcultarError();
         }
 
         // RF-22: la lista se trae una vez al entrar a la pantalla — no hace

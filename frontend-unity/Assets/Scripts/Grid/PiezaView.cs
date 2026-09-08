@@ -10,9 +10,10 @@ namespace Sme.Grid
     //
     // Una Plaza ocupa 2 celdas pero se persiste como una sola fila en su celda
     // "ancla" (dominio/modelo-clases.md) — la segunda celda se infiere de
-    // caraAcceso. Por eso el rectángulo es siempre de 2 celdas de largo (nunca
-    // un cuadrado de 1), y cambia de forma (vertical u horizontal) según la
-    // orientación.
+    // caraAcceso. El arte ya viene dibujado en su forma final (1 celda de
+    // ancho x 2 de alto, con la marca de acceso en el borde superior) y el
+    // rectángulo nunca cambia de tamaño — para las cuatro orientaciones se
+    // rota en pasos de 90°, igual que antes rotaba solo la flecha.
     //
     // La rotación se hace ANTES de soltar la pieza: mientras se sostiene el
     // arrastre (recién instanciada desde el catálogo, o una ya colocada que se
@@ -24,8 +25,6 @@ namespace Sme.Grid
     [RequireComponent(typeof(CanvasGroup))]
     public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
-        [SerializeField] private RectTransform flechaAcceso;
-
         // RF-21 lee esto para armar el JSON a guardar (PUT /grilla).
         public CaraAcceso CaraAcceso => caraAcceso;
 
@@ -204,12 +203,11 @@ namespace Sme.Grid
             return GrillaGenerador.ObtenerCelda(ancla.Fila + deltaFila, ancla.Columna + deltaColumna);
         }
 
-        // El rectángulo cubre desde el borde externo de la celda ancla hasta el
-        // borde externo de la celda secundaria. En vez de asumir a qué dirección
-        // de pantalla corresponde cada CaraAcceso (eso dependía de cómo esté
-        // configurado el Start Corner/Start Axis del GridLayoutGroup, y se
-        // rompía si no coincidía con lo asumido), se mide la posición real de
-        // ambas celdas — así funciona sin importar esa configuración.
+        // El rectángulo se centra en el punto medio entre ambas celdas — eso
+        // sigue midiéndose en vez de asumirse, para no depender de cómo esté
+        // configurado el Start Corner/Start Axis del GridLayoutGroup. El
+        // tamaño, en cambio, es siempre el mismo (ver AplicarRotacion): la
+        // forma vertical u horizontal la da la rotación, no un resize.
         private void PosicionarSobreCeldas()
         {
             RectTransform anclaRect = celdaAncla.GetComponent<RectTransform>();
@@ -219,40 +217,29 @@ namespace Sme.Grid
             rectTransform.SetParent(celdaAncla.transform, false);
             rectTransform.anchoredPosition = offsetHaciaSecundaria / 2f;
 
-            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
-            Vector2 espaciado = GrillaGenerador.Espaciado;
-            bool esHorizontal = Mathf.Abs(offsetHaciaSecundaria.x) > Mathf.Abs(offsetHaciaSecundaria.y);
-
-            rectTransform.sizeDelta = esHorizontal
-                ? new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y)
-                : new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
-
-            AplicarFlecha();
+            AplicarTamanioYRotacion();
         }
 
-        // Tamaño aproximado mientras se arrastra y todavía no hay celdas reales
-        // contra las que medir (recién instanciada desde el catálogo, o una ya
-        // colocada que se está moviendo) — es solo la vista previa. El tamaño
-        // definitivo se recalcula en PosicionarSobreCeldas al soltar.
+        // Mientras se arrastra (recién instanciada desde el catálogo, o una ya
+        // colocada que se está moviendo) no hay celdas reales contra las que
+        // medir el punto medio, pero el tamaño y la rotación son los mismos
+        // que en PosicionarSobreCeldas — no dependen de la posición.
         private void AplicarTamanioLibre()
         {
-            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
-            Vector2 espaciado = GrillaGenerador.Espaciado;
-            bool esVertical = caraAcceso == CaraAcceso.NORTE || caraAcceso == CaraAcceso.SUR;
-
-            rectTransform.sizeDelta = esVertical
-                ? new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y)
-                : new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
-
-            AplicarFlecha();
+            AplicarTamanioYRotacion();
         }
 
-        private void AplicarFlecha()
+        // El arte ya viene dibujado vertical (1 celda de ancho x 2 de alto,
+        // marca de acceso arriba = NORTE sin rotar), así que el tamaño nunca
+        // cambia — las cuatro orientaciones son la misma pieza rotada en pasos
+        // de 90°, con el mismo signo que antes usaba solo la flecha.
+        private void AplicarTamanioYRotacion()
         {
-            if (flechaAcceso != null)
-            {
-                flechaAcceso.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
-            }
+            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
+            Vector2 espaciado = GrillaGenerador.Espaciado;
+
+            rectTransform.sizeDelta = new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
+            rectTransform.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
         }
     }
 }
