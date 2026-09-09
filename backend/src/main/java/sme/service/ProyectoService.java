@@ -11,8 +11,10 @@ import sme.dto.PiezaRequest;
 import sme.dto.PiezaResponse;
 import sme.dto.ProyectoDetalleResponse;
 import sme.dto.ProyectoResumenResponse;
+import sme.entity.Direccion;
 import sme.entity.Pieza;
 import sme.entity.Proyecto;
+import sme.entity.TipoPieza;
 import sme.exception.NegocioException;
 import sme.repository.PiezaRepository;
 import sme.repository.ProyectoRepository;
@@ -67,13 +69,17 @@ public class ProyectoService {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
         List<PiezaResponse> piezas = piezaRepository.findByProyectoId(proyecto.getId()).stream()
-                .map(pieza -> new PiezaResponse(
-                        pieza.getPiso(),
-                        pieza.getFila(),
-                        pieza.getColumna(),
-                        pieza.getTipo().name(),
-                        pieza.getCaraAcceso() == null ? null : pieza.getCaraAcceso().name(),
-                        pieza.getEsAccesible()))
+                .map(pieza -> {
+                    Direccion orientacion = usaColumnaDireccion(pieza.getTipo()) ? pieza.getDireccion() : pieza.getCaraAcceso();
+                    return new PiezaResponse(
+                            pieza.getPiso(),
+                            pieza.getFila(),
+                            pieza.getColumna(),
+                            pieza.getTipo().name(),
+                            orientacion == null ? null : orientacion.name(),
+                            pieza.getEsAccesible(),
+                            pieza.getEsCrucePeatonal());
+                })
                 .toList();
 
         return new ProyectoDetalleResponse(
@@ -114,9 +120,23 @@ public class ProyectoService {
         pieza.setFila(dto.fila());
         pieza.setColumna(dto.columna());
         pieza.setTipo(dto.tipo());
-        pieza.setCaraAcceso(dto.caraAcceso());
+        if (usaColumnaDireccion(dto.tipo())) {
+            pieza.setDireccion(dto.caraAcceso());
+        } else {
+            pieza.setCaraAcceso(dto.caraAcceso());
+        }
         pieza.setEsAccesible(dto.esAccesible());
+        pieza.setEsCrucePeatonal(dto.esCrucePeatonal());
         return pieza;
+    }
+
+    // El wire contract (contratos/api-contract.md) manda la orientación de
+    // cualquier pieza en un solo campo JSON ("caraAcceso"), pero el modelo de
+    // dominio la separa en dos columnas según el tipo (dominio/modelo-clases.md):
+    // Calle/Entrada/Salida orientan su circulación ("direccion"), Plaza/
+    // ZonaBicicletasMotos orientan su lado de acceso ("cara_acceso").
+    private boolean usaColumnaDireccion(TipoPieza tipo) {
+        return tipo == TipoPieza.CALLE || tipo == TipoPieza.ENTRADA || tipo == TipoPieza.SALIDA;
     }
 
     // contratos/api-contract.md, sección 1: un proyecto de otro usuario responde

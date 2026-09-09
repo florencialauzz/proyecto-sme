@@ -21,26 +21,46 @@ namespace Sme.Grid
     // validación real (celda ocupada / fuera de la grilla) ocurre una sola vez,
     // al soltar, en IntentarColocar. Así se puede orientar la pieza de una sola
     // vez en espacios ajustados, sin tener que colocarla y corregirla después.
+    //
+    // RF-14: clic derecho sobre una Plaza ya colocada abre MenuContextualPlaza,
+    // que alterna esAccesible. Solo tiene sentido sobre una pieza asentada —
+    // mientras se arrastra, OnPointerClick no se dispara (el clic derecho no
+    // inicia arrastre, así que nunca hay conflicto con IBeginDragHandler).
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(CanvasGroup))]
-    public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    [RequireComponent(typeof(Image))]
+    public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler,
+        IPiezaColocada, IArrastrableDesdeCatalogo
     {
         // RF-21 lee esto para armar el JSON a guardar (PUT /grilla).
         public CaraAcceso CaraAcceso => caraAcceso;
+        public bool EsAccesible => esAccesible;
+
+        // IPiezaColocada: Plaza es la única pieza de 2 celdas y no tiene cruce
+        // peatonal (eso es propiedad de Calle, RF-17).
+        public TipoPieza Tipo => TipoPieza.PLAZA;
+        public string Orientacion => caraAcceso.ToString();
+        public bool EsCrucePeatonal => false;
+
+        [SerializeField] private Sprite spriteNormal;
+        [SerializeField] private Sprite spriteAccesible;
 
         private CaraAcceso caraAcceso = CaraAcceso.NORTE;
         private CaraAcceso caraAccesoOriginal;
+        private bool esAccesible;
         private CeldaView celdaAncla;
         private CeldaView celdaSecundaria;
         private bool estaArrastrando;
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
         private Canvas canvasRaiz;
+        private Image imagen;
 
         private void Awake()
         {
             rectTransform = GetComponent<RectTransform>();
             canvasGroup = GetComponent<CanvasGroup>();
+            imagen = GetComponent<Image>();
             canvasRaiz = GetComponentInParent<Canvas>().rootCanvas;
 
             // La pieza es hija de celdaAncla (para que RecolectarPiezas sepa
@@ -70,11 +90,34 @@ namespace Sme.Grid
         }
 
         // Reconstruir una pieza ya guardada (abrir proyecto) — sin arrastre, se
-        // asienta directo con la orientación que ya tenía.
-        public void ColocarDesdeGuardado(CeldaView ancla, CaraAcceso orientacionGuardada)
+        // asienta directo con la orientación y accesibilidad que ya tenía.
+        public void ColocarDesdeGuardado(CeldaView ancla, CaraAcceso orientacionGuardada, bool accesibleGuardado)
         {
             caraAcceso = orientacionGuardada;
+            esAccesible = accesibleGuardado;
+            ActualizarSprite();
             IntentarColocar(ancla);
+        }
+
+        // --- RF-14: accesibilidad (clic derecho) ---
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (estaArrastrando || eventData.button != PointerEventData.InputButton.Right) return;
+
+            MenuContextualPlaza.Mostrar(this, eventData.position);
+        }
+
+        // Llamado por MenuContextualPlaza al elegir la única opción del menú.
+        public void AlternarAccesibilidad()
+        {
+            esAccesible = !esAccesible;
+            ActualizarSprite();
+        }
+
+        private void ActualizarSprite()
+        {
+            imagen.sprite = esAccesible ? spriteAccesible : spriteNormal;
         }
 
         // --- Arrastre desde el catálogo (pieza recién instanciada, todavía sin celda) ---

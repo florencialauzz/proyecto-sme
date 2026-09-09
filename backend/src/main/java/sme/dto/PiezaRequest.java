@@ -9,5 +9,6 @@ public record PiezaRequest(
         Integer columna,
         TipoPieza tipo,
         Direccion caraAcceso,
-        Boolean esAccesible) {
+        Boolean esAccesible,
+        Boolean esCrucePeatonal) {
 }
