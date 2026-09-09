@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sme.dto.CrearProyectoRequest;
 import sme.dto.CrearProyectoResponse;
+import sme.dto.GuardarConfiguracionRequest;
+import sme.dto.GuardarConfiguracionResponse;
 import sme.dto.GuardarGrillaRequest;
 import sme.dto.GuardarGrillaResponse;
 import sme.dto.PiezaRequest;
@@ -79,10 +81,50 @@ public class ProyectoService {
         return new ProyectoDetalleResponse(
                 proyecto.getId(),
                 proyecto.getNombre(),
+                proyecto.getCantidadPisos(),
+                proyecto.getFrecuenciaIngreso(),
+                proyecto.getTiempoPermanencia(),
+                proyecto.getHoraInicioSimulacion(),
+                proyecto.getHoraFinSimulacion(),
                 proyecto.getFilasGrilla(),
                 proyecto.getColumnasGrilla(),
                 piezas,
                 proyecto.getEstado().name());
+    }
+
+    // RF-08 a RF-11: cada validación corresponde al Flujo Alternativo A1 de su
+    // propio caso de uso (producto/casos-de-uso-expandidos.md) — se chequean
+    // en orden (pisos, frecuencia, permanencia, horario) y se corta en la
+    // primera que falle, igual que el resto de los métodos de este service.
+    public GuardarConfiguracionResponse guardarConfiguracion(Long usuarioId, Long proyectoId, GuardarConfiguracionRequest request) {
+        Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
+
+        if (request.cantidadPisos() == null || request.cantidadPisos() < 1) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CANTIDAD_PISOS_INVALIDA",
+                    "La cantidad de pisos debe ser un número entero mayor o igual a uno");
+        }
+        if (request.frecuenciaIngreso() == null || request.frecuenciaIngreso() <= 0) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "FRECUENCIA_INVALIDA",
+                    "La frecuencia debe ser un valor numérico mayor a cero");
+        }
+        if (request.tiempoPermanencia() == null || request.tiempoPermanencia() <= 0) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "TIEMPO_PERMANENCIA_INVALIDO",
+                    "El tiempo de permanencia debe ser un valor numérico mayor a cero");
+        }
+        if (request.horaInicioSimulacion() == null || request.horaFinSimulacion() == null
+                || !request.horaFinSimulacion().isAfter(request.horaInicioSimulacion())) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "HORARIO_INVALIDO",
+                    "La hora de fin debe ser posterior a la hora de inicio");
+        }
+
+        proyecto.setCantidadPisos(request.cantidadPisos());
+        proyecto.setFrecuenciaIngreso(request.frecuenciaIngreso());
+        proyecto.setTiempoPermanencia(request.tiempoPermanencia());
+        proyecto.setHoraInicioSimulacion(request.horaInicioSimulacion());
+        proyecto.setHoraFinSimulacion(request.horaFinSimulacion());
+        proyectoRepository.save(proyecto);
+
+        return new GuardarConfiguracionResponse(true);
     }
 
     // RF-13, RF-21: reemplaza la grilla completa del proyecto — se borran las
