@@ -9,5 +9,11 @@ namespace Sme.Grid
         string Orientacion { get; }
         bool EsAccesible { get; }
         bool EsCrucePeatonal { get; }
+
+        // CeldaView lo llama en la celda propia y en hasta 4 vecinas cada vez
+        // que algo se coloca, mueve o quita (editor/catalogo-piezas.md,
+        // autotiling; editor/grafo-circulacion.md, rol de cruce). La mayoría
+        // de las piezas no tienen nada que recalcular todavía.
+        void Refrescar();
     }
 }

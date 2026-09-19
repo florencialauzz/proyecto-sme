@@ -7,8 +7,7 @@ namespace Sme.Models
     // cualquier pieza orientable, sea cara de acceso (Plaza, ZonaBiciMoto) o
     // dirección de circulación (Calle, Entrada, Salida) — el backend decide a
     // qué columna la guarda según "tipo" (ver ProyectoService.aPieza).
-    // "esCrucePeatonal" solo aplica a piezas tipo CALLE (RF-17, todavía sin
-    // interacción para alternarlo).
+    // "esCrucePeatonal" solo aplica a piezas tipo CALLE (RF-17).
 
     [Serializable]
     public class PiezaDto
