@@ -6,5 +6,6 @@ public record PiezaResponse(
         Integer columna,
         String tipo,
         String caraAcceso,
-        Boolean esAccesible) {
+        Boolean esAccesible,
+        Boolean esCrucePeatonal) {
 }
