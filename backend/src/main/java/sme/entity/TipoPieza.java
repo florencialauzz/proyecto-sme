@@ -1,7 +1,7 @@
 package sme.entity;
 
-// Solo PLAZA existe en Iteración 1 (contratos/esquema-bd.md tiene más tipos,
-// pero esos entran recién con RF-16/RF-18 en Iteraciones 2 y 3).
+// contratos/esquema-bd.md tiene además RAMPA y ESCALERA, que entran recién
+// con RF-18 en Iteración 3.
 public enum TipoPieza {
-    PLAZA
+    PLAZA, CALLE, ENTRADA, SALIDA, ZONA_BICI_MOTO
 }

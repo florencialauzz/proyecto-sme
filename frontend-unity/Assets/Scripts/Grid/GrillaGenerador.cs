@@ -20,6 +20,10 @@ namespace Sme.Grid
         [SerializeField] private RectTransform contenedorGrilla;
         [SerializeField] private GameObject prefabCelda;
         [SerializeField] private GameObject prefabPlaza;
+        [SerializeField] private GameObject prefabCalle;
+        [SerializeField] private GameObject prefabEntrada;
+        [SerializeField] private GameObject prefabSalida;
+        [SerializeField] private GameObject prefabZonaBiciMoto;
 
         // Registro estático de celdas por posición: lo necesita PiezaView (RF-13)
         // para encontrar la celda vecina de una pieza de 2 celdas, como Plaza
@@ -30,9 +34,18 @@ namespace Sme.Grid
 
         public static Vector2 TamanioCelda { get; private set; }
         public static Vector2 Espaciado { get; private set; }
+        private static int filasGrilla;
+        private static int columnasGrilla;
+        private static RectTransform contenedorGrillaEstatico;
+
+        // RaycastUtils la usa para reconocer el catcher transparente del
+        // contenedor (ver Editor.unity) entre los resultados del raycast.
+        public static GameObject ContenedorGrillaGameObject =>
+            contenedorGrillaEstatico != null ? contenedorGrillaEstatico.gameObject : null;
 
         private void Start()
         {
+            contenedorGrillaEstatico = contenedorGrilla;
             GenerarGrilla(ProyectoManager.FilasGrilla, ProyectoManager.ColumnasGrilla);
 
             // El GridLayoutGroup recién ubica las celdas en su rebuild diferido
@@ -48,6 +61,9 @@ namespace Sme.Grid
         private void GenerarGrilla(int filas, int columnas)
         {
             celdas.Clear();
+            GrillaModelo.Generar(filas, columnas);
+            filasGrilla = filas;
+            columnasGrilla = columnas;
 
             // Fija la cantidad de columnas para que el GridLayoutGroup no dependa
             // del ancho del contenedor para decidir dónde wrappear la fila.
@@ -71,9 +87,10 @@ namespace Sme.Grid
             }
         }
 
-        // Solo pone piezas Plaza (único tipo que existe en Iteración 1) en su
-        // celda ancla, con la orientación guardada — celdas fuera de rango se
-        // ignoran en vez de romper todo, por si la grilla cambió de tamaño.
+        // Reconstruye cada pieza guardada en su celda ancla, con la
+        // orientación (y accesibilidad, si aplica) guardadas — celdas fuera de
+        // rango se ignoran en vez de romper todo, por si la grilla cambió de
+        // tamaño.
         private void CargarPiezasGuardadas()
         {
             PiezaDto[] piezas = ProyectoManager.PiezasACargar;
@@ -85,14 +102,86 @@ namespace Sme.Grid
                 if (ancla == null) continue;
 
                 CaraAcceso orientacion = (CaraAcceso)Enum.Parse(typeof(CaraAcceso), pieza.caraAcceso);
-                GameObject instancia = Instantiate(prefabPlaza, contenedorGrilla);
-                instancia.GetComponent<PiezaView>().ColocarDesdeGuardado(ancla, orientacion);
+                TipoPieza tipo = (TipoPieza)Enum.Parse(typeof(TipoPieza), pieza.tipo);
+
+                if (tipo == TipoPieza.PLAZA)
+                {
+                    GameObject instancia = Instantiate(prefabPlaza, contenedorGrilla);
+                    instancia.GetComponent<PiezaView>().ColocarDesdeGuardado(ancla, orientacion, pieza.esAccesible);
+                }
+                else
+                {
+                    GameObject instancia = Instantiate(PrefabPara(tipo), contenedorGrilla);
+                    instancia.GetComponent<PiezaSimpleView>().ColocarDesdeGuardado(ancla, orientacion, pieza.esCrucePeatonal);
+                }
             }
+        }
+
+        private GameObject PrefabPara(TipoPieza tipo)
+        {
+            return tipo switch
+            {
+                TipoPieza.CALLE => prefabCalle,
+                TipoPieza.ENTRADA => prefabEntrada,
+                TipoPieza.SALIDA => prefabSalida,
+                TipoPieza.ZONA_BICI_MOTO => prefabZonaBiciMoto,
+                _ => throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de pieza sin prefab asignado")
+            };
         }
 
         public static CeldaView ObtenerCelda(int fila, int columna)
         {
             return celdas.TryGetValue((fila, columna), out CeldaView celda) ? celda : null;
+        }
+
+        // El hueco entre celdas (m_Spacing del GridLayoutGroup) no tiene
+        // Image propia, así que un raycast que cae justo ahí no golpea
+        // ningún CeldaView. RaycastUtils llama acá cuando el raycast solo
+        // encontró el catcher transparente del contenedor (ver
+        // Editor.unity), para redondear ese punto a la celda más cercana en
+        // vez de tratar el hueco como si estuviera fuera de la grilla.
+        public static CeldaView ObtenerCeldaMasCercana(Vector2 posicionPantalla, Camera camaraEvento)
+        {
+            if (contenedorGrillaEstatico == null) return null;
+
+            bool convertido = RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                contenedorGrillaEstatico, posicionPantalla, camaraEvento, out Vector2 local);
+            if (!convertido) return null;
+
+            Rect rect = contenedorGrillaEstatico.rect;
+            float pasoX = TamanioCelda.x + Espaciado.x;
+            float pasoY = TamanioCelda.y + Espaciado.y;
+
+            int columna = Mathf.FloorToInt((local.x - rect.xMin) / pasoX);
+            int fila = Mathf.FloorToInt((rect.yMax - local.y) / pasoY);
+
+            if (columna < 0 || columna >= columnasGrilla || fila < 0 || fila >= filasGrilla)
+            {
+                return null;
+            }
+
+            return ObtenerCelda(fila, columna);
+        }
+
+        // RF-19: Entrada, Salida y ZonaBicicletasMotos solo son válidas sobre
+        // el borde de la grilla.
+        public static bool EsCeldaDeBorde(int fila, int columna)
+        {
+            return fila == 0 || fila == filasGrilla - 1 || columna == 0 || columna == columnasGrilla - 1;
+        }
+
+        // RF-19: hacia dónde queda "afuera de la grilla" desde esta celda —
+        // vacío si no es de borde, una dirección en un borde simple, dos en
+        // una esquina. Es la base para la orientación automática de Entrada,
+        // Salida y ZonaBicicletasMotos (PiezaSimpleView).
+        public static CaraAcceso[] DireccionesHaciaAfuera(int fila, int columna)
+        {
+            var direcciones = new List<CaraAcceso>();
+            if (fila == 0) direcciones.Add(CaraAcceso.NORTE);
+            if (fila == filasGrilla - 1) direcciones.Add(CaraAcceso.SUR);
+            if (columna == 0) direcciones.Add(CaraAcceso.OESTE);
+            if (columna == columnasGrilla - 1) direcciones.Add(CaraAcceso.ESTE);
+            return direcciones.ToArray();
         }
 
         // RF-21: recorrer toda la grilla para juntar las piezas colocadas.

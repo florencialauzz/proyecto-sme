@@ -21,6 +21,13 @@ namespace Sme.UI
         private void Awake()
         {
             botonIniciarSesion.onClick.AddListener(IniciarSesion);
+        }
+
+        // Este panel no recarga la escena al mostrarse de nuevo (se activa/desactiva
+        // junto con Registro dentro de Auth), así que Awake no alcanza para limpiar
+        // un error que quedó de una visita anterior — OnEnable corre cada vez.
+        private void OnEnable()
+        {
             OcultarError();
         }
 

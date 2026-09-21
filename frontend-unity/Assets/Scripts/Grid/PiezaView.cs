@@ -10,9 +10,10 @@ namespace Sme.Grid
     //
     // Una Plaza ocupa 2 celdas pero se persiste como una sola fila en su celda
     // "ancla" (dominio/modelo-clases.md) — la segunda celda se infiere de
-    // caraAcceso. Por eso el rectángulo es siempre de 2 celdas de largo (nunca
-    // un cuadrado de 1), y cambia de forma (vertical u horizontal) según la
-    // orientación.
+    // caraAcceso. El arte ya viene dibujado en su forma final (1 celda de
+    // ancho x 2 de alto, con la marca de acceso en el borde superior) y el
+    // rectángulo nunca cambia de tamaño — para las cuatro orientaciones se
+    // rota en pasos de 90°, igual que antes rotaba solo la flecha.
     //
     // La rotación se hace ANTES de soltar la pieza: mientras se sostiene el
     // arrastre (recién instanciada desde el catálogo, o una ya colocada que se
@@ -20,28 +21,51 @@ namespace Sme.Grid
     // validación real (celda ocupada / fuera de la grilla) ocurre una sola vez,
     // al soltar, en IntentarColocar. Así se puede orientar la pieza de una sola
     // vez en espacios ajustados, sin tener que colocarla y corregirla después.
+    //
+    // RF-14: clic derecho sobre una Plaza ya colocada abre MenuContextual,
+    // que alterna esAccesible o elimina la pieza. Solo tiene sentido sobre
+    // una pieza asentada — mientras se arrastra, OnPointerClick no se
+    // dispara (el clic derecho no inicia arrastre, así que nunca hay
+    // conflicto con IBeginDragHandler).
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(CanvasGroup))]
-    public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    [RequireComponent(typeof(Image))]
+    public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler,
+        IPiezaColocada, IArrastrableDesdeCatalogo
     {
-        [SerializeField] private RectTransform flechaAcceso;
-
         // RF-21 lee esto para armar el JSON a guardar (PUT /grilla).
         public CaraAcceso CaraAcceso => caraAcceso;
+        public bool EsAccesible => esAccesible;
+
+        // IPiezaColocada: Plaza es la única pieza de 2 celdas y no tiene cruce
+        // peatonal (eso es propiedad de Calle, RF-17).
+        public TipoPieza Tipo => TipoPieza.PLAZA;
+        public string Orientacion => caraAcceso.ToString();
+        public bool EsCrucePeatonal => false;
+
+        // La Plaza no participa del conteo de conexiones ni del autotiling
+        // (editor/grafo-circulacion.md) — no tiene nada que recalcular.
+        public void Refrescar() { }
+
+        [SerializeField] private Sprite spriteNormal;
+        [SerializeField] private Sprite spriteAccesible;
 
         private CaraAcceso caraAcceso = CaraAcceso.NORTE;
         private CaraAcceso caraAccesoOriginal;
+        private bool esAccesible;
         private CeldaView celdaAncla;
         private CeldaView celdaSecundaria;
         private bool estaArrastrando;
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
         private Canvas canvasRaiz;
+        private Image imagen;
 
         private void Awake()
         {
             rectTransform = GetComponent<RectTransform>();
             canvasGroup = GetComponent<CanvasGroup>();
+            imagen = GetComponent<Image>();
             canvasRaiz = GetComponentInParent<Canvas>().rootCanvas;
 
             // La pieza es hija de celdaAncla (para que RecolectarPiezas sepa
@@ -71,11 +95,47 @@ namespace Sme.Grid
         }
 
         // Reconstruir una pieza ya guardada (abrir proyecto) — sin arrastre, se
-        // asienta directo con la orientación que ya tenía.
-        public void ColocarDesdeGuardado(CeldaView ancla, CaraAcceso orientacionGuardada)
+        // asienta directo con la orientación y accesibilidad que ya tenía.
+        public void ColocarDesdeGuardado(CeldaView ancla, CaraAcceso orientacionGuardada, bool accesibleGuardado)
         {
             caraAcceso = orientacionGuardada;
+            esAccesible = accesibleGuardado;
+            ActualizarSprite();
             IntentarColocar(ancla);
+        }
+
+        // --- RF-14: accesibilidad (clic derecho) — y eliminar, para toda pieza ---
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (estaArrastrando || eventData.button != PointerEventData.InputButton.Right) return;
+
+            string textoAccesible = esAccesible ? "Quitar accesibilidad" : "Marcar como accesible";
+            MenuContextual.Mostrar(this, eventData.position,
+                new MenuContextual.Opcion(textoAccesible, AlternarAccesibilidad),
+                new MenuContextual.Opcion("Eliminar", Eliminar));
+        }
+
+        // Llamado por MenuContextual al elegir "Marcar/Quitar accesibilidad".
+        public void AlternarAccesibilidad()
+        {
+            esAccesible = !esAccesible;
+            ActualizarSprite();
+        }
+
+        // Llamado por MenuContextual al elegir "Eliminar" — mismo resultado
+        // que soltar la pieza fuera de la grilla (OnEndDrag), sin pasar por
+        // el arrastre.
+        private void Eliminar()
+        {
+            celdaAncla.Liberar();
+            celdaSecundaria.Liberar();
+            Destroy(gameObject);
+        }
+
+        private void ActualizarSprite()
+        {
+            imagen.sprite = esAccesible ? spriteAccesible : spriteNormal;
         }
 
         // --- Arrastre desde el catálogo (pieza recién instanciada, todavía sin celda) ---
@@ -180,36 +240,32 @@ namespace Sme.Grid
 
             celdaAncla = nuevaAncla;
             celdaSecundaria = nuevaSecundaria;
-            celdaAncla.Ocupar();
-            celdaSecundaria.Ocupar();
+            // Posicionar antes de ocupar: Ocupar() avisa a las vecinas y a sí
+            // misma (CeldaView.Refrescar), y Refrescar necesita encontrar esta
+            // pieza como hija de la celda para poder recalcularse.
             PosicionarSobreCeldas();
+            celdaAncla.Ocupar(TipoPieza.PLAZA, caraAcceso);
+            celdaSecundaria.Ocupar(TipoPieza.PLAZA, null);
             return true;
         }
 
-        // Define qué celda es la vecina en cada dirección — es una regla de
-        // topología (fila/columna), no una posición en pantalla. No necesita
-        // asumir hacia dónde "apunta" cada dirección visualmente: eso lo
-        // resuelve PosicionarSobreCeldas midiendo las celdas reales.
+        // El ancla es siempre la celda por la que entra el vehículo
+        // (editor/catalogo-piezas.md): el resto de la pieza (fondo) se
+        // extiende en la dirección OPUESTA a caraAcceso. La celda vecina en
+        // la dirección de caraAcceso es la que tiene que ser circulación
+        // (alcanzabilidad, editor/grafo-circulacion.md) — no es esta pieza,
+        // así que no se calcula acá.
         private CeldaView ObtenerCeldaSecundaria(CeldaView ancla)
         {
-            (int deltaFila, int deltaColumna) = caraAcceso switch
-            {
-                CaraAcceso.NORTE => (-1, 0),
-                CaraAcceso.SUR => (1, 0),
-                CaraAcceso.ESTE => (0, 1),
-                CaraAcceso.OESTE => (0, -1),
-                _ => (0, 0)
-            };
-
+            (int deltaFila, int deltaColumna) = GrillaModelo.Delta(GrillaModelo.Opuesta(caraAcceso));
             return GrillaGenerador.ObtenerCelda(ancla.Fila + deltaFila, ancla.Columna + deltaColumna);
         }
 
-        // El rectángulo cubre desde el borde externo de la celda ancla hasta el
-        // borde externo de la celda secundaria. En vez de asumir a qué dirección
-        // de pantalla corresponde cada CaraAcceso (eso dependía de cómo esté
-        // configurado el Start Corner/Start Axis del GridLayoutGroup, y se
-        // rompía si no coincidía con lo asumido), se mide la posición real de
-        // ambas celdas — así funciona sin importar esa configuración.
+        // El rectángulo se centra en el punto medio entre ambas celdas — eso
+        // sigue midiéndose en vez de asumirse, para no depender de cómo esté
+        // configurado el Start Corner/Start Axis del GridLayoutGroup. El
+        // tamaño, en cambio, es siempre el mismo (ver AplicarRotacion): la
+        // forma vertical u horizontal la da la rotación, no un resize.
         private void PosicionarSobreCeldas()
         {
             RectTransform anclaRect = celdaAncla.GetComponent<RectTransform>();
@@ -219,40 +275,29 @@ namespace Sme.Grid
             rectTransform.SetParent(celdaAncla.transform, false);
             rectTransform.anchoredPosition = offsetHaciaSecundaria / 2f;
 
-            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
-            Vector2 espaciado = GrillaGenerador.Espaciado;
-            bool esHorizontal = Mathf.Abs(offsetHaciaSecundaria.x) > Mathf.Abs(offsetHaciaSecundaria.y);
-
-            rectTransform.sizeDelta = esHorizontal
-                ? new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y)
-                : new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
-
-            AplicarFlecha();
+            AplicarTamanioYRotacion();
         }
 
-        // Tamaño aproximado mientras se arrastra y todavía no hay celdas reales
-        // contra las que medir (recién instanciada desde el catálogo, o una ya
-        // colocada que se está moviendo) — es solo la vista previa. El tamaño
-        // definitivo se recalcula en PosicionarSobreCeldas al soltar.
+        // Mientras se arrastra (recién instanciada desde el catálogo, o una ya
+        // colocada que se está moviendo) no hay celdas reales contra las que
+        // medir el punto medio, pero el tamaño y la rotación son los mismos
+        // que en PosicionarSobreCeldas — no dependen de la posición.
         private void AplicarTamanioLibre()
         {
-            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
-            Vector2 espaciado = GrillaGenerador.Espaciado;
-            bool esVertical = caraAcceso == CaraAcceso.NORTE || caraAcceso == CaraAcceso.SUR;
-
-            rectTransform.sizeDelta = esVertical
-                ? new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y)
-                : new Vector2(tamCelda.x * 2f + espaciado.x, tamCelda.y);
-
-            AplicarFlecha();
+            AplicarTamanioYRotacion();
         }
 
-        private void AplicarFlecha()
+        // El arte ya viene dibujado vertical (1 celda de ancho x 2 de alto,
+        // marca de acceso arriba = NORTE sin rotar), así que el tamaño nunca
+        // cambia — las cuatro orientaciones son la misma pieza rotada en pasos
+        // de 90°, con el mismo signo que antes usaba solo la flecha.
+        private void AplicarTamanioYRotacion()
         {
-            if (flechaAcceso != null)
-            {
-                flechaAcceso.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
-            }
+            Vector2 tamCelda = GrillaGenerador.TamanioCelda;
+            Vector2 espaciado = GrillaGenerador.Espaciado;
+
+            rectTransform.sizeDelta = new Vector2(tamCelda.x, tamCelda.y * 2f + espaciado.y);
+            rectTransform.localEulerAngles = new Vector3(0f, 0f, -90f * (int)caraAcceso);
         }
     }
 }

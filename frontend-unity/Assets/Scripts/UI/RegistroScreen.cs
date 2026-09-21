@@ -26,6 +26,13 @@ namespace Sme.UI
         {
             CargarOpcionesPreguntaSeguridad();
             botonRegistrar.onClick.AddListener(Registrar);
+        }
+
+        // Este panel no recarga la escena al mostrarse de nuevo (se activa/desactiva
+        // junto con Login dentro de Auth), así que Awake no alcanza para limpiar
+        // un error que quedó de una visita anterior — OnEnable corre cada vez.
+        private void OnEnable()
+        {
             OcultarError();
         }
 
