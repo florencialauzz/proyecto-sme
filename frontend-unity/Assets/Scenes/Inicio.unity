@@ -2292,7 +2292,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 486279246}
         m_TargetAssemblyTypeName: Sme.Managers.NavegadorEscenas, Assembly-CSharp
-        m_MethodName: IrAEditor
+        m_MethodName: IrAConfiguracion
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2307,7 +2307,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 486279246}
         m_TargetAssemblyTypeName: Sme.Managers.NavegadorEscenas, Assembly-CSharp
-        m_MethodName: IrAEditor
+        m_MethodName: IrAConfiguracion
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

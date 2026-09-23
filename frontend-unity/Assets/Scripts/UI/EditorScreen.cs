@@ -19,8 +19,10 @@ namespace Sme.UI
         [SerializeField] private TMP_Text textoMensaje;
         [SerializeField] private Button botonGuardar;
         [SerializeField] private Button botonSalir;
+        [SerializeField] private Button botonConfiguracion;
 
         [SerializeField] private UnityEvent alSalir;
+        [SerializeField] private UnityEvent alIrAConfiguracion;
 
         private Coroutine ocultamientoEnCurso;
 
@@ -30,6 +32,7 @@ namespace Sme.UI
             textoMensaje.gameObject.SetActive(false);
             botonGuardar.onClick.AddListener(GuardarProyecto);
             botonSalir.onClick.AddListener(Salir);
+            botonConfiguracion.onClick.AddListener(IrAConfiguracion);
         }
 
         public void MostrarMensaje(string mensaje)
@@ -81,6 +84,14 @@ namespace Sme.UI
         private void Salir()
         {
             alSalir?.Invoke();
+        }
+
+        // RF-08 a RF-11: permite volver a la pantalla de Configuración para
+        // cambiar frecuencia/permanencia/horario y simular otro escenario sobre
+        // el mismo proyecto ya modelado.
+        private void IrAConfiguracion()
+        {
+            alIrAConfiguracion?.Invoke();
         }
 
         // Recorre toda la grilla y arma una fila por cada pieza colocada, en su
