@@ -36,9 +36,31 @@ namespace Sme.Models
     {
         public long proyectoId;
         public string nombre;
+        public int cantidadPisos;
+        public int frecuenciaIngreso;
+        public int tiempoPermanencia;
+        public string horaInicioSimulacion;
+        public string horaFinSimulacion;
         public int filasGrilla;
         public int columnasGrilla;
         public PiezaDto[] piezas;
         public string estado;
+    }
+
+    // RF-08 a RF-11: PUT /proyectos/{id}/configuracion.
+    [Serializable]
+    public class GuardarConfiguracionRequest
+    {
+        public int cantidadPisos;
+        public int frecuenciaIngreso;
+        public int tiempoPermanencia;
+        public string horaInicioSimulacion;
+        public string horaFinSimulacion;
+    }
+
+    [Serializable]
+    public class GuardarConfiguracionResponse
+    {
+        public bool guardado;
     }
 }

@@ -23,5 +23,11 @@ namespace Sme.Managers
         {
             SceneManager.LoadScene("Editor");
         }
+
+        // RF-08 a RF-11: pantalla de configuración de simulación, entre Inicio y Editor.
+        public void IrAConfiguracion()
+        {
+            SceneManager.LoadScene("Configuracion");
+        }
     }
 }

@@ -18,6 +18,7 @@ import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "proyecto", uniqueConstraints = {
@@ -53,6 +54,12 @@ public class Proyecto {
 
     @Column(name = "tiempo_permanencia")
     private Integer tiempoPermanencia;
+
+    @Column(name = "hora_inicio_simulacion")
+    private LocalTime horaInicioSimulacion;
+
+    @Column(name = "hora_fin_simulacion")
+    private LocalTime horaFinSimulacion;
 
     @Column(name = "filas_grilla", nullable = false)
     private Integer filasGrilla = 15;
@@ -92,6 +99,12 @@ public class Proyecto {
 
     public Integer getTiempoPermanencia() { return tiempoPermanencia; }
     public void setTiempoPermanencia(Integer tiempoPermanencia) { this.tiempoPermanencia = tiempoPermanencia; }
+
+    public LocalTime getHoraInicioSimulacion() { return horaInicioSimulacion; }
+    public void setHoraInicioSimulacion(LocalTime horaInicioSimulacion) { this.horaInicioSimulacion = horaInicioSimulacion; }
+
+    public LocalTime getHoraFinSimulacion() { return horaFinSimulacion; }
+    public void setHoraFinSimulacion(LocalTime horaFinSimulacion) { this.horaFinSimulacion = horaFinSimulacion; }
 
     public Integer getFilasGrilla() { return filasGrilla; }
     public void setFilasGrilla(Integer filasGrilla) { this.filasGrilla = filasGrilla; }

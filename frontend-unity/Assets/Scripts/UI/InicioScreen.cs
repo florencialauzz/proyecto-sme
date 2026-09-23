@@ -112,7 +112,12 @@ namespace Sme.UI
                         detalle.filasGrilla,
                         detalle.columnasGrilla,
                         detalle.estado,
-                        detalle.piezas);
+                        detalle.piezas,
+                        detalle.cantidadPisos,
+                        detalle.frecuenciaIngreso,
+                        detalle.tiempoPermanencia,
+                        detalle.horaInicioSimulacion,
+                        detalle.horaFinSimulacion);
                     alAbrirProyectoConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>

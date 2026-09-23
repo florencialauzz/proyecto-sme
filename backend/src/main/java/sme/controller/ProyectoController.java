@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import sme.dto.CrearProyectoRequest;
 import sme.dto.CrearProyectoResponse;
+import sme.dto.GuardarConfiguracionRequest;
+import sme.dto.GuardarConfiguracionResponse;
 import sme.dto.GuardarGrillaRequest;
 import sme.dto.GuardarGrillaResponse;
 import sme.dto.ProyectoDetalleResponse;
@@ -59,5 +61,14 @@ public class ProyectoController {
                                                                 Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(proyectoService.guardarGrilla(usuarioId, id, request));
+    }
+
+    // RF-08 a RF-11
+    @PutMapping("/{id}/configuracion")
+    public ResponseEntity<GuardarConfiguracionResponse> guardarConfiguracion(@PathVariable Long id,
+                                                                              @RequestBody GuardarConfiguracionRequest request,
+                                                                              Authentication authentication) {
+        Long usuarioId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(proyectoService.guardarConfiguracion(usuarioId, id, request));
     }
 }
