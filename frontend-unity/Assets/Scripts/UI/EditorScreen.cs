@@ -83,16 +83,18 @@ namespace Sme.UI
             alSalir?.Invoke();
         }
 
-        // Recorre toda la grilla y arma una fila por cada Plaza colocada, en su
-        // celda ancla (dominio/modelo-clases.md) — la segunda celda no se
-        // guarda aparte, el backend la vuelve a inferir de caraAcceso.
+        // Recorre toda la grilla y arma una fila por cada pieza colocada, en su
+        // celda ancla (dominio/modelo-clases.md) — la segunda celda de una
+        // Plaza no se guarda aparte, el backend la vuelve a inferir de
+        // caraAcceso. IPiezaColocada deja este método genérico para cualquier
+        // tipo de pieza, no solo Plaza.
         private PiezaDto[] RecolectarPiezas()
         {
             var piezas = new List<PiezaDto>();
 
             foreach (CeldaView celda in GrillaGenerador.ObtenerTodasLasCeldas())
             {
-                PiezaView pieza = celda.GetComponentInChildren<PiezaView>();
+                IPiezaColocada pieza = celda.GetComponentInChildren<IPiezaColocada>();
                 if (pieza == null) continue;
 
                 piezas.Add(new PiezaDto
@@ -100,9 +102,10 @@ namespace Sme.UI
                     piso = 0,
                     fila = celda.Fila,
                     columna = celda.Columna,
-                    tipo = "PLAZA",
-                    caraAcceso = pieza.CaraAcceso.ToString(),
-                    esAccesible = false
+                    tipo = pieza.Tipo.ToString(),
+                    caraAcceso = pieza.Orientacion,
+                    esAccesible = pieza.EsAccesible,
+                    esCrucePeatonal = pieza.EsCrucePeatonal
                 });
             }
 

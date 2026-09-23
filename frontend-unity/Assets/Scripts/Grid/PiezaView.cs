@@ -21,26 +21,51 @@ namespace Sme.Grid
     // validación real (celda ocupada / fuera de la grilla) ocurre una sola vez,
     // al soltar, en IntentarColocar. Así se puede orientar la pieza de una sola
     // vez en espacios ajustados, sin tener que colocarla y corregirla después.
+    //
+    // RF-14: clic derecho sobre una Plaza ya colocada abre MenuContextual,
+    // que alterna esAccesible o elimina la pieza. Solo tiene sentido sobre
+    // una pieza asentada — mientras se arrastra, OnPointerClick no se
+    // dispara (el clic derecho no inicia arrastre, así que nunca hay
+    // conflicto con IBeginDragHandler).
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(CanvasGroup))]
-    public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    [RequireComponent(typeof(Image))]
+    public class PiezaView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler,
+        IPiezaColocada, IArrastrableDesdeCatalogo
     {
         // RF-21 lee esto para armar el JSON a guardar (PUT /grilla).
         public CaraAcceso CaraAcceso => caraAcceso;
+        public bool EsAccesible => esAccesible;
+
+        // IPiezaColocada: Plaza es la única pieza de 2 celdas y no tiene cruce
+        // peatonal (eso es propiedad de Calle, RF-17).
+        public TipoPieza Tipo => TipoPieza.PLAZA;
+        public string Orientacion => caraAcceso.ToString();
+        public bool EsCrucePeatonal => false;
+
+        // La Plaza no participa del conteo de conexiones ni del autotiling
+        // (editor/grafo-circulacion.md) — no tiene nada que recalcular.
+        public void Refrescar() { }
+
+        [SerializeField] private Sprite spriteNormal;
+        [SerializeField] private Sprite spriteAccesible;
 
         private CaraAcceso caraAcceso = CaraAcceso.NORTE;
         private CaraAcceso caraAccesoOriginal;
+        private bool esAccesible;
         private CeldaView celdaAncla;
         private CeldaView celdaSecundaria;
         private bool estaArrastrando;
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
         private Canvas canvasRaiz;
+        private Image imagen;
 
         private void Awake()
         {
             rectTransform = GetComponent<RectTransform>();
             canvasGroup = GetComponent<CanvasGroup>();
+            imagen = GetComponent<Image>();
             canvasRaiz = GetComponentInParent<Canvas>().rootCanvas;
 
             // La pieza es hija de celdaAncla (para que RecolectarPiezas sepa
@@ -70,11 +95,47 @@ namespace Sme.Grid
         }
 
         // Reconstruir una pieza ya guardada (abrir proyecto) — sin arrastre, se
-        // asienta directo con la orientación que ya tenía.
-        public void ColocarDesdeGuardado(CeldaView ancla, CaraAcceso orientacionGuardada)
+        // asienta directo con la orientación y accesibilidad que ya tenía.
+        public void ColocarDesdeGuardado(CeldaView ancla, CaraAcceso orientacionGuardada, bool accesibleGuardado)
         {
             caraAcceso = orientacionGuardada;
+            esAccesible = accesibleGuardado;
+            ActualizarSprite();
             IntentarColocar(ancla);
+        }
+
+        // --- RF-14: accesibilidad (clic derecho) — y eliminar, para toda pieza ---
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (estaArrastrando || eventData.button != PointerEventData.InputButton.Right) return;
+
+            string textoAccesible = esAccesible ? "Quitar accesibilidad" : "Marcar como accesible";
+            MenuContextual.Mostrar(this, eventData.position,
+                new MenuContextual.Opcion(textoAccesible, AlternarAccesibilidad),
+                new MenuContextual.Opcion("Eliminar", Eliminar));
+        }
+
+        // Llamado por MenuContextual al elegir "Marcar/Quitar accesibilidad".
+        public void AlternarAccesibilidad()
+        {
+            esAccesible = !esAccesible;
+            ActualizarSprite();
+        }
+
+        // Llamado por MenuContextual al elegir "Eliminar" — mismo resultado
+        // que soltar la pieza fuera de la grilla (OnEndDrag), sin pasar por
+        // el arrastre.
+        private void Eliminar()
+        {
+            celdaAncla.Liberar();
+            celdaSecundaria.Liberar();
+            Destroy(gameObject);
+        }
+
+        private void ActualizarSprite()
+        {
+            imagen.sprite = esAccesible ? spriteAccesible : spriteNormal;
         }
 
         // --- Arrastre desde el catálogo (pieza recién instanciada, todavía sin celda) ---
@@ -179,27 +240,24 @@ namespace Sme.Grid
 
             celdaAncla = nuevaAncla;
             celdaSecundaria = nuevaSecundaria;
-            celdaAncla.Ocupar();
-            celdaSecundaria.Ocupar();
+            // Posicionar antes de ocupar: Ocupar() avisa a las vecinas y a sí
+            // misma (CeldaView.Refrescar), y Refrescar necesita encontrar esta
+            // pieza como hija de la celda para poder recalcularse.
             PosicionarSobreCeldas();
+            celdaAncla.Ocupar(TipoPieza.PLAZA, caraAcceso);
+            celdaSecundaria.Ocupar(TipoPieza.PLAZA, null);
             return true;
         }
 
-        // Define qué celda es la vecina en cada dirección — es una regla de
-        // topología (fila/columna), no una posición en pantalla. No necesita
-        // asumir hacia dónde "apunta" cada dirección visualmente: eso lo
-        // resuelve PosicionarSobreCeldas midiendo las celdas reales.
+        // El ancla es siempre la celda por la que entra el vehículo
+        // (editor/catalogo-piezas.md): el resto de la pieza (fondo) se
+        // extiende en la dirección OPUESTA a caraAcceso. La celda vecina en
+        // la dirección de caraAcceso es la que tiene que ser circulación
+        // (alcanzabilidad, editor/grafo-circulacion.md) — no es esta pieza,
+        // así que no se calcula acá.
         private CeldaView ObtenerCeldaSecundaria(CeldaView ancla)
         {
-            (int deltaFila, int deltaColumna) = caraAcceso switch
-            {
-                CaraAcceso.NORTE => (-1, 0),
-                CaraAcceso.SUR => (1, 0),
-                CaraAcceso.ESTE => (0, 1),
-                CaraAcceso.OESTE => (0, -1),
-                _ => (0, 0)
-            };
-
+            (int deltaFila, int deltaColumna) = GrillaModelo.Delta(GrillaModelo.Opuesta(caraAcceso));
             return GrillaGenerador.ObtenerCelda(ancla.Fila + deltaFila, ancla.Columna + deltaColumna);
         }
 
