@@ -52,6 +52,7 @@ namespace Sme.Grid
         public string Orientacion => orientacion.ToString();
         public bool EsAccesible => false;
         public bool EsCrucePeatonal => esCrucePeatonal;
+        public string SentidoVertical => null;
 
         private CaraAcceso orientacion = CaraAcceso.NORTE;
         private bool esCrucePeatonal;
@@ -188,7 +189,7 @@ namespace Sme.Grid
 
             if (celdaDestino == null)
             {
-                MensajesEditor.Mostrar("La pieza queda fuera de los límites de la grilla.");
+                MensajesEditor.MostrarError("La pieza queda fuera de los límites de la grilla.");
                 Destroy(gameObject);
                 return;
             }
@@ -248,7 +249,7 @@ namespace Sme.Grid
 
             if (celdaDestino == null)
             {
-                MensajesEditor.Mostrar("La pieza queda fuera de los límites de la grilla.");
+                MensajesEditor.MostrarError("La pieza queda fuera de los límites de la grilla.");
                 Destroy(gameObject);
                 return;
             }
@@ -267,24 +268,32 @@ namespace Sme.Grid
         {
             if (nuevaAncla.Ocupada)
             {
-                MensajesEditor.Mostrar("La celda está ocupada.");
+                MensajesEditor.MostrarError("La celda está ocupada.");
                 return false;
             }
 
             if (RequiereBorde(tipo) && !GrillaGenerador.EsCeldaDeBorde(nuevaAncla.Fila, nuevaAncla.Columna))
             {
-                MensajesEditor.Mostrar("La pieza solo puede colocarse sobre el borde de la grilla.");
+                MensajesEditor.MostrarError("La pieza solo puede colocarse sobre el borde de la grilla.");
                 return false;
             }
 
             // RF-19: exactamente una Entrada y una Salida en todo el
-            // proyecto. Si esta misma pieza ya estaba colocada (se está
-            // moviendo), OnBeginDrag ya liberó su celda antes de llegar
-            // acá, así que la búsqueda no la encuentra a ella misma.
+            // proyecto, y solo en planta baja. Si esta misma pieza ya
+            // estaba colocada (se está moviendo), OnBeginDrag ya liberó su
+            // celda antes de llegar acá, así que la búsqueda no la
+            // encuentra a ella misma.
+            if (RequiereUnicidad(tipo) && nuevaAncla.Piso != 0)
+            {
+                string nombre = tipo == TipoPieza.ENTRADA ? "La Entrada" : "La Salida";
+                MensajesEditor.MostrarError($"{nombre} solo puede colocarse en planta baja.");
+                return false;
+            }
+
             if (RequiereUnicidad(tipo) && GrillaModelo.ExisteOcupadaDeTipo(tipo))
             {
                 string nombre = tipo == TipoPieza.ENTRADA ? "una Entrada" : "una Salida";
-                MensajesEditor.Mostrar($"Ya existe {nombre} en el proyecto.");
+                MensajesEditor.MostrarError($"Ya existe {nombre} en el proyecto.");
                 return false;
             }
 

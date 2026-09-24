@@ -15,8 +15,7 @@ import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-// Espejo de contratos/esquema-bd.md. sentido_vertical se agrega recién con
-// Rampa (RF-18) en Iteración 3.
+// Espejo de contratos/esquema-bd.md.
 @Entity
 @Table(name = "pieza", uniqueConstraints = {
         @UniqueConstraint(name = "uq_pieza_celda", columnNames = {"proyecto_id", "piso", "fila", "columna"})
@@ -70,6 +69,13 @@ public class Pieza {
     @Column(name = "es_cruce_peatonal")
     private Boolean esCrucePeatonal;
 
+    // Solo Rampa (RF-18). Cada una de sus dos filas (una por piso) guarda el
+    // mismo sentido — el par se deriva de la posición, no se guarda
+    // (editor/catalogo-piezas.md).
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sentido_vertical", length = 10)
+    private SentidoVertical sentidoVertical;
+
     public Pieza() {
     }
 
@@ -102,4 +108,7 @@ public class Pieza {
 
     public Boolean getEsCrucePeatonal() { return esCrucePeatonal; }
     public void setEsCrucePeatonal(Boolean esCrucePeatonal) { this.esCrucePeatonal = esCrucePeatonal; }
+
+    public SentidoVertical getSentidoVertical() { return sentidoVertical; }
+    public void setSentidoVertical(SentidoVertical sentidoVertical) { this.sentidoVertical = sentidoVertical; }
 }

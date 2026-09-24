@@ -55,6 +55,24 @@ namespace Sme.Managers
             HoraFinSimulacion = horaFinSimulacion;
         }
 
+        // RF-21: se llama después de guardar la grilla con éxito. Sin esto,
+        // ir a Configuración y volver al Editor recarga la escena con las
+        // piezas que había al abrir el proyecto, no con las recién guardadas.
+        // cantidadPisos cambia acá cuando se eliminó un piso desde el editor
+        // (RF-18).
+        public static void GuardarGrilla(PiezaDto[] piezas, int cantidadPisos)
+        {
+            PiezasACargar = piezas;
+
+            // 0 significa "sin configuración todavía" (ver arriba): el editor
+            // igual guarda 1 piso, pero no hay que hacer creer a
+            // ConfiguracionScreen que ya hay una configuración para precargar.
+            if (CantidadPisos > 0)
+            {
+                CantidadPisos = cantidadPisos;
+            }
+        }
+
         public static void CerrarProyecto()
         {
             ProyectoId = 0;

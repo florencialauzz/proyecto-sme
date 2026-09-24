@@ -16,6 +16,7 @@ import sme.dto.ProyectoResumenResponse;
 import sme.entity.Direccion;
 import sme.entity.Pieza;
 import sme.entity.Proyecto;
+import sme.entity.SentidoVertical;
 import sme.entity.TipoPieza;
 import sme.exception.NegocioException;
 import sme.repository.PiezaRepository;
@@ -73,6 +74,7 @@ public class ProyectoService {
         List<PiezaResponse> piezas = piezaRepository.findByProyectoId(proyecto.getId()).stream()
                 .map(pieza -> {
                     Direccion orientacion = usaColumnaDireccion(pieza.getTipo()) ? pieza.getDireccion() : pieza.getCaraAcceso();
+                    SentidoVertical sentidoVertical = pieza.getSentidoVertical();
                     return new PiezaResponse(
                             pieza.getPiso(),
                             pieza.getFila(),
@@ -80,7 +82,8 @@ public class ProyectoService {
                             pieza.getTipo().name(),
                             orientacion == null ? null : orientacion.name(),
                             pieza.getEsAccesible(),
-                            pieza.getEsCrucePeatonal());
+                            pieza.getEsCrucePeatonal(),
+                            sentidoVertical == null ? null : sentidoVertical.name());
                 })
                 .toList();
 
@@ -109,6 +112,14 @@ public class ProyectoService {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "CANTIDAD_PISOS_INVALIDA",
                     "La cantidad de pisos debe ser un número entero mayor o igual a uno");
         }
+        // Bajar la cantidad de pisos desde acá dejaría piezas colgando en pisos
+        // que ya no existen, sin que el usuario elija cuál perder. Se hace
+        // eliminando el piso puntual desde el editor (guardarGrilla).
+        if (proyecto.getCantidadPisos() != null && request.cantidadPisos() < proyecto.getCantidadPisos()) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CANTIDAD_PISOS_MENOR",
+                    "No se puede reducir la cantidad de pisos desde la configuración. "
+                            + "Eliminá el piso que quieras quitar desde el editor");
+        }
         if (request.frecuenciaIngreso() == null || request.frecuenciaIngreso() <= 0) {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "FRECUENCIA_INVALIDA",
                     "La frecuencia debe ser un valor numérico mayor a cero");
@@ -135,9 +146,32 @@ public class ProyectoService {
 
     // RF-13, RF-21: reemplaza la grilla completa del proyecto — se borran las
     // piezas anteriores y se insertan las nuevas en la misma transacción.
+    //
+    // RF-18: cantidadPisos solo puede bajar por acá (eliminar un piso desde el
+    // editor); subir se hace desde la configuración. Las validaciones de
+    // colocación (RF-19) corren en Unity — esto solo evita guardar piezas en
+    // un piso que el proyecto no tiene.
     @Transactional
     public GuardarGrillaResponse guardarGrilla(Long usuarioId, Long proyectoId, GuardarGrillaRequest request) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
+
+        int pisosGuardados = proyecto.getCantidadPisos() == null ? 1 : proyecto.getCantidadPisos();
+        int pisosNuevos = request.cantidadPisos() == null ? pisosGuardados : request.cantidadPisos();
+        if (pisosNuevos < 1 || pisosNuevos > pisosGuardados) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CANTIDAD_PISOS_INVALIDA",
+                    "La cantidad de pisos no es válida para este proyecto");
+        }
+        for (PiezaRequest dto : request.piezas()) {
+            if (dto.piso() == null || dto.piso() < 0 || dto.piso() >= pisosNuevos) {
+                throw new NegocioException(HttpStatus.BAD_REQUEST, "PISO_INEXISTENTE",
+                        "Hay piezas en un piso que el proyecto no tiene");
+            }
+        }
+
+        if (proyecto.getCantidadPisos() != null) {
+            proyecto.setCantidadPisos(pisosNuevos);
+            proyectoRepository.save(proyecto);
+        }
 
         // flush() fuerza el DELETE a ejecutarse ya, antes del saveAll: sin esto,
         // Hibernate ordena el flush por tipo de acción (todos los INSERT antes
@@ -162,23 +196,32 @@ public class ProyectoService {
         pieza.setFila(dto.fila());
         pieza.setColumna(dto.columna());
         pieza.setTipo(dto.tipo());
-        if (usaColumnaDireccion(dto.tipo())) {
+        // La Escalera no tiene orientación (dominio/modelo-clases.md): lo que
+        // venga en caraAcceso se descarta en vez de guardarse en una columna.
+        if (dto.tipo() == TipoPieza.ESCALERA) {
+            pieza.setDireccion(null);
+            pieza.setCaraAcceso(null);
+        } else if (usaColumnaDireccion(dto.tipo())) {
             pieza.setDireccion(dto.caraAcceso());
         } else {
             pieza.setCaraAcceso(dto.caraAcceso());
         }
         pieza.setEsAccesible(dto.esAccesible());
         pieza.setEsCrucePeatonal(dto.esCrucePeatonal());
+        if (dto.tipo() == TipoPieza.RAMPA) {
+            pieza.setSentidoVertical(SentidoVertical.valueOf(dto.sentidoVertical()));
+        }
         return pieza;
     }
 
     // El wire contract (contratos/api-contract.md) manda la orientación de
     // cualquier pieza en un solo campo JSON ("caraAcceso"), pero el modelo de
     // dominio la separa en dos columnas según el tipo (dominio/modelo-clases.md):
-    // Calle/Entrada/Salida orientan su circulación ("direccion"), Plaza/
+    // Calle/Entrada/Salida/Rampa orientan su circulación ("direccion"), Plaza/
     // ZonaBicicletasMotos orientan su lado de acceso ("cara_acceso").
     private boolean usaColumnaDireccion(TipoPieza tipo) {
-        return tipo == TipoPieza.CALLE || tipo == TipoPieza.ENTRADA || tipo == TipoPieza.SALIDA;
+        return tipo == TipoPieza.CALLE || tipo == TipoPieza.ENTRADA || tipo == TipoPieza.SALIDA
+                || tipo == TipoPieza.RAMPA;
     }
 
     // contratos/api-contract.md, sección 1: un proyecto de otro usuario responde

@@ -1,7 +1,6 @@
 package sme.entity;
 
-// contratos/esquema-bd.md tiene además RAMPA y ESCALERA, que entran recién
-// con RF-18 en Iteración 3.
+// Espejo del ENUM tipo de contratos/esquema-bd.md.
 public enum TipoPieza {
-    PLAZA, CALLE, ENTRADA, SALIDA, ZONA_BICI_MOTO
+    PLAZA, CALLE, ENTRADA, SALIDA, ZONA_BICI_MOTO, RAMPA, ESCALERA
 }

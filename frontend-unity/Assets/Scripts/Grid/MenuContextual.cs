@@ -44,11 +44,12 @@ namespace Sme.Grid
 
             // Cada pieza dibuja su Canvas propio con sortingOrder 1
             // (PiezaView.Awake / PiezaSimpleView.Awake) para quedar por
-            // encima de las celdas — este menú necesita un sortingOrder más
-            // alto todavía para no quedar tapado por ninguna pieza.
+            // encima de las celdas, y la marca roja de RF-20 usa 2
+            // (CeldaView.MostrarAdvertencia) — este menú necesita un
+            // sortingOrder más alto todavía para no quedar tapado por nada.
             Canvas canvasMenu = fondo.GetComponent<Canvas>();
             canvasMenu.overrideSorting = true;
-            canvasMenu.sortingOrder = 2;
+            canvasMenu.sortingOrder = 3;
 
             // fondoRect cubre el mismo rectángulo que canvasRaiz, así que un
             // punto de pantalla convertido a coordenadas locales de
