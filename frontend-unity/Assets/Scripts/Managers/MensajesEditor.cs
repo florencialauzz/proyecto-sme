@@ -18,9 +18,11 @@ namespace Sme.Managers
             pantalla = editorScreen;
         }
 
-        public static void Mostrar(string mensaje)
+        // Todo lo que pasa por acá es un rechazo de colocación: se muestra con
+        // el estilo de error (rojo, ver EditorScreen.MostrarError).
+        public static void MostrarError(string mensaje)
         {
-            pantalla?.MostrarMensaje(mensaje);
+            pantalla?.MostrarError(mensaje);
         }
     }
 }

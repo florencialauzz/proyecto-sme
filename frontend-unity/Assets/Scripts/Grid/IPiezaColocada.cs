@@ -10,6 +10,9 @@ namespace Sme.Grid
         bool EsAccesible { get; }
         bool EsCrucePeatonal { get; }
 
+        // Solo Rampa (RF-18): "SUBE" o "BAJA". null para el resto.
+        string SentidoVertical { get; }
+
         // CeldaView lo llama en la celda propia y en hasta 4 vecinas cada vez
         // que algo se coloca, mueve o quita (editor/catalogo-piezas.md,
         // autotiling; editor/grafo-circulacion.md, rol de cruce). La mayoría

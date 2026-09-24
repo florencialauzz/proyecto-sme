@@ -7,5 +7,6 @@ public record PiezaResponse(
         String tipo,
         String caraAcceso,
         Boolean esAccesible,
-        Boolean esCrucePeatonal) {
+        Boolean esCrucePeatonal,
+        String sentidoVertical) {
 }

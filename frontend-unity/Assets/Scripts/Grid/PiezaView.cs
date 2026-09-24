@@ -37,11 +37,13 @@ namespace Sme.Grid
         public CaraAcceso CaraAcceso => caraAcceso;
         public bool EsAccesible => esAccesible;
 
-        // IPiezaColocada: Plaza es la única pieza de 2 celdas y no tiene cruce
-        // peatonal (eso es propiedad de Calle, RF-17).
+        // IPiezaColocada: Plaza es la única pieza de 2 celdas en un mismo piso
+        // y no tiene cruce peatonal (eso es propiedad de Calle, RF-17) ni
+        // sentido vertical (eso es de Rampa, RF-18).
         public TipoPieza Tipo => TipoPieza.PLAZA;
         public string Orientacion => caraAcceso.ToString();
         public bool EsCrucePeatonal => false;
+        public string SentidoVertical => null;
 
         // La Plaza no participa del conteo de conexiones ni del autotiling
         // (editor/grafo-circulacion.md) — no tiene nada que recalcular.
@@ -121,6 +123,7 @@ namespace Sme.Grid
         {
             esAccesible = !esAccesible;
             ActualizarSprite();
+            celdaAncla.MarcarAccesible(esAccesible);
         }
 
         // Llamado por MenuContextual al elegir "Eliminar" — mismo resultado
@@ -160,7 +163,7 @@ namespace Sme.Grid
 
             if (celdaDestino == null)
             {
-                MensajesEditor.Mostrar("La plaza queda fuera de los límites de la grilla.");
+                MensajesEditor.MostrarError("La plaza queda fuera de los límites de la grilla.");
                 Destroy(gameObject);
                 return;
             }
@@ -197,7 +200,7 @@ namespace Sme.Grid
             if (celdaDestino == null)
             {
                 // Soltada fuera de los límites de la grilla: quitar.
-                MensajesEditor.Mostrar("La plaza queda fuera de los límites de la grilla.");
+                MensajesEditor.MostrarError("La plaza queda fuera de los límites de la grilla.");
                 Destroy(gameObject);
                 return;
             }
@@ -228,13 +231,13 @@ namespace Sme.Grid
 
             if (nuevaSecundaria == null)
             {
-                MensajesEditor.Mostrar("La plaza queda fuera de los límites de la grilla.");
+                MensajesEditor.MostrarError("La plaza queda fuera de los límites de la grilla.");
                 return false;
             }
 
             if (nuevaAncla.Ocupada || nuevaSecundaria.Ocupada)
             {
-                MensajesEditor.Mostrar("La celda está ocupada.");
+                MensajesEditor.MostrarError("La celda está ocupada.");
                 return false;
             }
 
@@ -246,6 +249,9 @@ namespace Sme.Grid
             PosicionarSobreCeldas();
             celdaAncla.Ocupar(TipoPieza.PLAZA, caraAcceso);
             celdaSecundaria.Ocupar(TipoPieza.PLAZA, null);
+            // Ocupar deja la celda como no accesible; la accesibilidad es de
+            // la pieza y viaja con ella al moverla (RF-20 la cuenta).
+            celdaAncla.MarcarAccesible(esAccesible);
             return true;
         }
 
@@ -258,7 +264,7 @@ namespace Sme.Grid
         private CeldaView ObtenerCeldaSecundaria(CeldaView ancla)
         {
             (int deltaFila, int deltaColumna) = GrillaModelo.Delta(GrillaModelo.Opuesta(caraAcceso));
-            return GrillaGenerador.ObtenerCelda(ancla.Fila + deltaFila, ancla.Columna + deltaColumna);
+            return GrillaGenerador.ObtenerCelda(ancla.Piso, ancla.Fila + deltaFila, ancla.Columna + deltaColumna);
         }
 
         // El rectángulo se centra en el punto medio entre ambas celdas — eso

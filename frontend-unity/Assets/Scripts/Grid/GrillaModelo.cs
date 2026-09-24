@@ -3,34 +3,51 @@ using System.Collections.Generic;
 namespace Sme.Grid
 {
     // Modelo puro de la grilla (sin MonoBehaviour): qué pieza hay en cada
-    // celda y hacia dónde apunta. CeldaView lee y escribe acá en vez de que
-    // las piezas se consulten entre sí recorriendo GameObjects; el conteo de
-    // conexiones (GrafoCirculacion) también consulta este modelo.
+    // celda de cada piso y hacia dónde apunta. CeldaView lee y escribe acá en
+    // vez de que las piezas se consulten entre sí recorriendo GameObjects; el
+    // conteo de conexiones (GrafoCirculacion) también consulta este modelo.
+    //
+    // RF-18: todos los pisos tienen el mismo tamaño de grilla. La vecindad
+    // horizontal (norte/sur/este/oeste) es siempre dentro del mismo piso —
+    // el único paso entre pisos es la Rampa (y la Escalera, para el peatón).
     public static class GrillaModelo
     {
-        private static readonly Dictionary<(int fila, int columna), CeldaGrilla> celdas = new();
+        private static readonly Dictionary<(int piso, int fila, int columna), CeldaGrilla> celdas = new();
 
-        public static void Generar(int filas, int columnas)
+        public static int CantidadPisos { get; private set; }
+
+        public static void Generar(int pisos, int filas, int columnas)
         {
             celdas.Clear();
-            for (int fila = 0; fila < filas; fila++)
+            CantidadPisos = pisos;
+            for (int piso = 0; piso < pisos; piso++)
             {
-                for (int columna = 0; columna < columnas; columna++)
+                for (int fila = 0; fila < filas; fila++)
                 {
-                    celdas[(fila, columna)] = new CeldaGrilla(fila, columna);
+                    for (int columna = 0; columna < columnas; columna++)
+                    {
+                        celdas[(piso, fila, columna)] = new CeldaGrilla(piso, fila, columna);
+                    }
                 }
             }
         }
 
-        public static CeldaGrilla ObtenerCelda(int fila, int columna)
+        public static CeldaGrilla ObtenerCelda(int piso, int fila, int columna)
         {
-            return celdas.TryGetValue((fila, columna), out CeldaGrilla celda) ? celda : null;
+            return celdas.TryGetValue((piso, fila, columna), out CeldaGrilla celda) ? celda : null;
+        }
+
+        // RF-20: ValidadorDiseno recorre todas las celdas de todos los pisos.
+        public static IEnumerable<CeldaGrilla> TodasLasCeldas()
+        {
+            return celdas.Values;
         }
 
         // RF-19: exactamente una Entrada y una Salida en todo el proyecto —
-        // antes de colocar una, hay que saber si ya existe otra. Al mover una
-        // pieza ya colocada, su propia celda ya se liberó (CeldaView.Liberar)
-        // antes de intentar la nueva, así que no hace falta excluirla acá.
+        // antes de colocar una, hay que saber si ya existe otra, en cualquier
+        // piso. Al mover una pieza ya colocada, su propia celda ya se liberó
+        // (CeldaView.Liberar) antes de intentar la nueva, así que no hace
+        // falta excluirla acá.
         public static bool ExisteOcupadaDeTipo(TipoPieza tipo)
         {
             foreach (CeldaGrilla celda in celdas.Values)

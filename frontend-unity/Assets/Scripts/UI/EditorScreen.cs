@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using Sme.Grid;
 using Sme.Managers;
 using Sme.Models;
@@ -16,6 +15,13 @@ namespace Sme.UI
     {
         private const float DuracionMensajeSegundos = 2.5f;
 
+        // Los errores (colocación rechazada, guardado fallido) se muestran en
+        // rojo, en negrita, un poco más grandes y más tiempo que los avisos
+        // normales ("Proyecto guardado."), para que no pasen desapercibidos.
+        private const float DuracionErrorSegundos = 4f;
+        private const float AumentoTamanioError = 4f;
+        private static readonly Color ColorError = new Color(0.95f, 0.25f, 0.25f, 1f);
+
         [SerializeField] private TMP_Text textoMensaje;
         [SerializeField] private Button botonGuardar;
         [SerializeField] private Button botonSalir;
@@ -26,9 +32,16 @@ namespace Sme.UI
 
         private Coroutine ocultamientoEnCurso;
 
+        // Estilo del texto tal como está en la escena: es el de los avisos
+        // normales, y a él se vuelve después de mostrar un error.
+        private Color colorNormal;
+        private float tamanioNormal;
+
         private void Awake()
         {
             MensajesEditor.Registrar(this);
+            colorNormal = textoMensaje.color;
+            tamanioNormal = textoMensaje.fontSize;
             textoMensaje.gameObject.SetActive(false);
             botonGuardar.onClick.AddListener(GuardarProyecto);
             botonSalir.onClick.AddListener(Salir);
@@ -36,6 +49,22 @@ namespace Sme.UI
         }
 
         public void MostrarMensaje(string mensaje)
+        {
+            textoMensaje.color = colorNormal;
+            textoMensaje.fontSize = tamanioNormal;
+            textoMensaje.fontStyle = FontStyles.Normal;
+            Mostrar(mensaje, DuracionMensajeSegundos);
+        }
+
+        public void MostrarError(string mensaje)
+        {
+            textoMensaje.color = ColorError;
+            textoMensaje.fontSize = tamanioNormal + AumentoTamanioError;
+            textoMensaje.fontStyle = FontStyles.Bold;
+            Mostrar(mensaje, DuracionErrorSegundos);
+        }
+
+        private void Mostrar(string mensaje, float duracionSegundos)
         {
             textoMensaje.text = mensaje;
             textoMensaje.gameObject.SetActive(true);
@@ -45,7 +74,7 @@ namespace Sme.UI
                 StopCoroutine(ocultamientoEnCurso);
             }
 
-            ocultamientoEnCurso = StartCoroutine(OcultarLuegoDe(DuracionMensajeSegundos));
+            ocultamientoEnCurso = StartCoroutine(OcultarLuegoDe(duracionSegundos));
         }
 
         private IEnumerator OcultarLuegoDe(float segundos)
@@ -59,9 +88,12 @@ namespace Sme.UI
         {
             botonGuardar.interactable = false;
 
+            // cantidadPisos baja si se eliminó un piso desde el editor (RF-18)
+            // — se guarda junto con las piezas, no antes.
             var request = new GuardarGrillaRequest
             {
-                piezas = RecolectarPiezas()
+                cantidadPisos = GrillaGenerador.CantidadPisos,
+                piezas = GrillaGenerador.RecolectarPiezas()
             };
 
             ApiClient.Put<GuardarGrillaRequest, GuardarGrillaResponse>(
@@ -70,12 +102,13 @@ namespace Sme.UI
                 alTenerExito: _ =>
                 {
                     botonGuardar.interactable = true;
+                    ProyectoManager.GuardarGrilla(request.piezas, request.cantidadPisos);
                     MostrarMensaje("Proyecto guardado.");
                 },
                 alFallar: (mensaje, codigo) =>
                 {
                     botonGuardar.interactable = true;
-                    MostrarMensaje(mensaje);
+                    MostrarError(mensaje);
                 });
         }
 
@@ -92,35 +125,6 @@ namespace Sme.UI
         private void IrAConfiguracion()
         {
             alIrAConfiguracion?.Invoke();
-        }
-
-        // Recorre toda la grilla y arma una fila por cada pieza colocada, en su
-        // celda ancla (dominio/modelo-clases.md) — la segunda celda de una
-        // Plaza no se guarda aparte, el backend la vuelve a inferir de
-        // caraAcceso. IPiezaColocada deja este método genérico para cualquier
-        // tipo de pieza, no solo Plaza.
-        private PiezaDto[] RecolectarPiezas()
-        {
-            var piezas = new List<PiezaDto>();
-
-            foreach (CeldaView celda in GrillaGenerador.ObtenerTodasLasCeldas())
-            {
-                IPiezaColocada pieza = celda.GetComponentInChildren<IPiezaColocada>();
-                if (pieza == null) continue;
-
-                piezas.Add(new PiezaDto
-                {
-                    piso = 0,
-                    fila = celda.Fila,
-                    columna = celda.Columna,
-                    tipo = pieza.Tipo.ToString(),
-                    caraAcceso = pieza.Orientacion,
-                    esAccesible = pieza.EsAccesible,
-                    esCrucePeatonal = pieza.EsCrucePeatonal
-                });
-            }
-
-            return piezas.ToArray();
         }
     }
 }
