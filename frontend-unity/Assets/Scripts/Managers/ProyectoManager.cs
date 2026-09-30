@@ -27,6 +27,12 @@ namespace Sme.Managers
         // para reconstruir la grilla al entrar a la escena Editor.
         public static PiezaDto[] PiezasACargar { get; private set; }
 
+        // RF-26: el resultado de la última simulación ejecutada, para que la
+        // escena Resultados lo muestre al abrir (mismo criterio que
+        // PiezasACargar para la escena Editor). No se persiste: guardarlo es
+        // RF-23, Iteración 4. null si todavía no se simuló este proyecto.
+        public static EjecutarSimulacionResponse UltimaSimulacion { get; private set; }
+
         public static void GuardarProyecto(long proyectoId, int filasGrilla, int columnasGrilla, string estado,
             PiezaDto[] piezasACargar = null, int cantidadPisos = 0, int frecuenciaIngreso = 0,
             int tiempoPermanencia = 0, string horaInicioSimulacion = null, string horaFinSimulacion = null)
@@ -41,6 +47,7 @@ namespace Sme.Managers
             TiempoPermanencia = tiempoPermanencia;
             HoraInicioSimulacion = horaInicioSimulacion;
             HoraFinSimulacion = horaFinSimulacion;
+            UltimaSimulacion = null;
         }
 
         // RF-08 a RF-11: se llama después de guardar la configuración con éxito,
@@ -73,6 +80,11 @@ namespace Sme.Managers
             }
         }
 
+        public static void GuardarSimulacion(EjecutarSimulacionResponse resultado)
+        {
+            UltimaSimulacion = resultado;
+        }
+
         public static void CerrarProyecto()
         {
             ProyectoId = 0;
@@ -85,6 +97,7 @@ namespace Sme.Managers
             TiempoPermanencia = 0;
             HoraInicioSimulacion = null;
             HoraFinSimulacion = null;
+            UltimaSimulacion = null;
         }
     }
 }

@@ -29,5 +29,11 @@ namespace Sme.Managers
         {
             SceneManager.LoadScene("Configuracion");
         }
+
+        // RF-26/RF-27: resultado de la simulación, después de ejecutarla desde el Editor.
+        public void IrAResultados()
+        {
+            SceneManager.LoadScene("Resultados");
+        }
     }
 }

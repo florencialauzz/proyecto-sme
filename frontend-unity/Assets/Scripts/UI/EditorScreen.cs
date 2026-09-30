@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Sme.Grid;
 using Sme.Managers;
@@ -10,7 +11,8 @@ using UnityEngine.UI;
 namespace Sme.UI
 {
     // Controlador de la escena Editor: mensajes compartidos (RF-13, ver
-    // MensajesEditor) y guardar proyecto (RF-21).
+    // MensajesEditor), guardar proyecto (RF-21) y ejecutar la simulación
+    // (RF-26).
     public class EditorScreen : MonoBehaviour
     {
         private const float DuracionMensajeSegundos = 2.5f;
@@ -26,11 +28,18 @@ namespace Sme.UI
         [SerializeField] private Button botonGuardar;
         [SerializeField] private Button botonSalir;
         [SerializeField] private Button botonConfiguracion;
+        [SerializeField] private Button botonSimular;
 
         [SerializeField] private UnityEvent alSalir;
         [SerializeField] private UnityEvent alIrAConfiguracion;
+        [SerializeField] private UnityEvent alIrAResultados;
 
         private Coroutine ocultamientoEnCurso;
+
+        // Mientras se guarda y se simula, el botón de simular queda
+        // deshabilitado aunque el diseño sea válido, para no mandar dos
+        // simulaciones seguidas con un doble clic.
+        private bool simulacionEnCurso;
 
         // Estilo del texto tal como está en la escena: es el de los avisos
         // normales, y a él se vuelve después de mostrar un error.
@@ -46,6 +55,19 @@ namespace Sme.UI
             botonGuardar.onClick.AddListener(GuardarProyecto);
             botonSalir.onClick.AddListener(Salir);
             botonConfiguracion.onClick.AddListener(IrAConfiguracion);
+            botonSimular.onClick.AddListener(Simular);
+
+            // RF-20: el botón de simular solo se habilita con el diseño
+            // válido. La primera validación corre en el LateUpdate de
+            // GrillaGenerador, después de este Awake, así que el botón
+            // arranca deshabilitado y se actualiza con el evento.
+            ValidadorDiseno.AlValidar += AlValidar;
+            ActualizarBotonSimular();
+        }
+
+        private void OnDestroy()
+        {
+            ValidadorDiseno.AlValidar -= AlValidar;
         }
 
         public void MostrarMensaje(string mensaje)
@@ -86,6 +108,16 @@ namespace Sme.UI
 
         private void GuardarProyecto()
         {
+            GuardarGrilla(
+                alGuardar: () => MostrarMensaje("Proyecto guardado."),
+                alFallar: null);
+        }
+
+        // RF-21: lo usan el botón Guardar y el de Simular — la simulación
+        // corre sobre la grilla guardada en el backend, no sobre la que está
+        // en pantalla, así que antes de simular hay que guardar.
+        private void GuardarGrilla(Action alGuardar, Action alFallar)
+        {
             botonGuardar.interactable = false;
 
             // cantidadPisos baja si se eliminó un piso desde el editor (RF-18)
@@ -103,13 +135,64 @@ namespace Sme.UI
                 {
                     botonGuardar.interactable = true;
                     ProyectoManager.GuardarGrilla(request.piezas, request.cantidadPisos);
-                    MostrarMensaje("Proyecto guardado.");
+                    alGuardar?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>
                 {
                     botonGuardar.interactable = true;
                     MostrarError(mensaje);
+                    alFallar?.Invoke();
                 });
+        }
+
+        // --- RF-26: ejecutar simulación ---
+
+        private void AlValidar(ValidadorDiseno.Resultado resultado)
+        {
+            ActualizarBotonSimular();
+        }
+
+        private void ActualizarBotonSimular()
+        {
+            ValidadorDiseno.Resultado ultimo = ValidadorDiseno.UltimoResultado;
+            bool disenoValido = ultimo != null && ultimo.DisenoValido;
+            botonSimular.interactable = disenoValido && !simulacionEnCurso;
+        }
+
+        // Guarda la grilla y, si sale bien, pide la simulación. Los errores
+        // del backend (configuración incompleta, diseño inválido) se muestran
+        // igual que los del guardado.
+        private void Simular()
+        {
+            simulacionEnCurso = true;
+            ActualizarBotonSimular();
+
+            GuardarGrilla(
+                alGuardar: EjecutarSimulacion,
+                alFallar: TerminarSimulacionSinResultado);
+        }
+
+        private void EjecutarSimulacion()
+        {
+            ApiClient.Post<EjecutarSimulacionRequest, EjecutarSimulacionResponse>(
+                $"/proyectos/{ProyectoManager.ProyectoId}/simulacion/ejecutar",
+                new EjecutarSimulacionRequest(),
+                alTenerExito: resultado =>
+                {
+                    ProyectoManager.GuardarSimulacion(resultado);
+                    alIrAResultados?.Invoke();
+                },
+                alFallar: (mensaje, codigo) =>
+                {
+                    MostrarError(mensaje);
+                    TerminarSimulacionSinResultado();
+                });
+        }
+
+        private void TerminarSimulacionSinResultado()
+        {
+            simulacionEnCurso = false;
+            ActualizarBotonSimular();
         }
 
         // El botón no guarda solo: si hay cambios sin guardar, es el usuario
