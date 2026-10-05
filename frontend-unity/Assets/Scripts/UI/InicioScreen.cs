@@ -117,7 +117,8 @@ namespace Sme.UI
                         detalle.frecuenciaIngreso,
                         detalle.tiempoPermanencia,
                         detalle.horaInicioSimulacion,
-                        detalle.horaFinSimulacion);
+                        detalle.horaFinSimulacion,
+                        detalle.conFluctuaciones);
                     alAbrirProyectoConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>

@@ -61,6 +61,14 @@ public class Proyecto {
     @Column(name = "hora_fin_simulacion")
     private LocalTime horaFinSimulacion;
 
+    // Checkbox de la configuración: si la simulación sortea llegadas y
+    // permanencias dentro de ±50% (simulacion/GeneradorDemanda) o usa los
+    // valores planos. Por defecto activado. Los proyectos guardados antes de
+    // que existiera la columna quedan en false (MySQL completa con 0 al
+    // agregarla), que es como simulaban.
+    @Column(name = "con_fluctuaciones", nullable = false)
+    private Boolean conFluctuaciones = true;
+
     @Column(name = "filas_grilla", nullable = false)
     private Integer filasGrilla = 15;
 
@@ -105,6 +113,9 @@ public class Proyecto {
 
     public LocalTime getHoraFinSimulacion() { return horaFinSimulacion; }
     public void setHoraFinSimulacion(LocalTime horaFinSimulacion) { this.horaFinSimulacion = horaFinSimulacion; }
+
+    public Boolean getConFluctuaciones() { return conFluctuaciones; }
+    public void setConFluctuaciones(Boolean conFluctuaciones) { this.conFluctuaciones = conFluctuaciones; }
 
     public Integer getFilasGrilla() { return filasGrilla; }
     public void setFilasGrilla(Integer filasGrilla) { this.filasGrilla = filasGrilla; }

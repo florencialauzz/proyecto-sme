@@ -22,6 +22,10 @@ namespace Sme.Managers
         public static string HoraInicioSimulacion { get; private set; }
         public static string HoraFinSimulacion { get; private set; }
 
+        // Checkbox de la configuración: la simulación sortea llegadas y
+        // permanencias dentro de ±50% del valor ingresado (lo hace el backend).
+        public static bool ConFluctuaciones { get; private set; }
+
         // Piezas ya guardadas de un proyecto que se está reabriendo (null si es
         // un proyecto recién creado, sin nada todavía) — GrillaGenerador las lee
         // para reconstruir la grilla al entrar a la escena Editor.
@@ -35,7 +39,8 @@ namespace Sme.Managers
 
         public static void GuardarProyecto(long proyectoId, int filasGrilla, int columnasGrilla, string estado,
             PiezaDto[] piezasACargar = null, int cantidadPisos = 0, int frecuenciaIngreso = 0,
-            int tiempoPermanencia = 0, string horaInicioSimulacion = null, string horaFinSimulacion = null)
+            int tiempoPermanencia = 0, string horaInicioSimulacion = null, string horaFinSimulacion = null,
+            bool conFluctuaciones = false)
         {
             ProyectoId = proyectoId;
             FilasGrilla = filasGrilla;
@@ -47,19 +52,21 @@ namespace Sme.Managers
             TiempoPermanencia = tiempoPermanencia;
             HoraInicioSimulacion = horaInicioSimulacion;
             HoraFinSimulacion = horaFinSimulacion;
+            ConFluctuaciones = conFluctuaciones;
             UltimaSimulacion = null;
         }
 
         // RF-08 a RF-11: se llama después de guardar la configuración con éxito,
         // para que quede disponible en memoria sin tener que volver a pedirla al backend.
         public static void GuardarConfiguracion(int cantidadPisos, int frecuenciaIngreso, int tiempoPermanencia,
-            string horaInicioSimulacion, string horaFinSimulacion)
+            string horaInicioSimulacion, string horaFinSimulacion, bool conFluctuaciones)
         {
             CantidadPisos = cantidadPisos;
             FrecuenciaIngreso = frecuenciaIngreso;
             TiempoPermanencia = tiempoPermanencia;
             HoraInicioSimulacion = horaInicioSimulacion;
             HoraFinSimulacion = horaFinSimulacion;
+            ConFluctuaciones = conFluctuaciones;
         }
 
         // RF-21: se llama después de guardar la grilla con éxito. Sin esto,
@@ -97,6 +104,7 @@ namespace Sme.Managers
             TiempoPermanencia = 0;
             HoraInicioSimulacion = null;
             HoraFinSimulacion = null;
+            ConFluctuaciones = false;
             UltimaSimulacion = null;
         }
     }

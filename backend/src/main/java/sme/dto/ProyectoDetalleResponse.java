@@ -15,6 +15,7 @@ public record ProyectoDetalleResponse(
         // "HH:mm:ss" y el formulario de configuración lo rechaza al reabrir.
         @JsonFormat(pattern = "HH:mm") LocalTime horaInicioSimulacion,
         @JsonFormat(pattern = "HH:mm") LocalTime horaFinSimulacion,
+        Boolean conFluctuaciones,
         Integer filasGrilla,
         Integer columnasGrilla,
         List<PiezaResponse> piezas,

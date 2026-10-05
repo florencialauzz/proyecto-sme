@@ -22,6 +22,10 @@ namespace Sme.UI
         [SerializeField] private TMP_InputField campoTiempoPermanencia;
         [SerializeField] private TMP_InputField campoHoraInicio;
         [SerializeField] private TMP_InputField campoHoraFin;
+        // Simular con variación aleatoria de ±50% en llegadas y permanencia
+        // (lo hace el backend). Al lado tiene un ícono "i" (BotonInfo) con la
+        // explicación.
+        [SerializeField] private Toggle toggleFluctuaciones;
         [SerializeField] private Button botonGuardar;
         [SerializeField] private TMP_Text textoError;
 
@@ -52,6 +56,14 @@ namespace Sme.UI
                 campoTiempoPermanencia.text = ProyectoManager.TiempoPermanencia.ToString();
                 campoHoraInicio.text = ProyectoManager.HoraInicioSimulacion;
                 campoHoraFin.text = ProyectoManager.HoraFinSimulacion;
+                toggleFluctuaciones.isOn = ProyectoManager.ConFluctuaciones;
+            }
+            else
+            {
+                // Proyecto sin configuración todavía: por defecto se simula
+                // con variación. Se fija acá y no solo en la escena porque el
+                // panel puede venir de mostrar otro proyecto.
+                toggleFluctuaciones.isOn = true;
             }
         }
 
@@ -80,6 +92,8 @@ namespace Sme.UI
                 return;
             }
 
+            bool conFluctuaciones = toggleFluctuaciones.isOn;
+
             botonGuardar.interactable = false;
 
             var request = new GuardarConfiguracionRequest
@@ -88,7 +102,8 @@ namespace Sme.UI
                 frecuenciaIngreso = frecuenciaIngreso,
                 tiempoPermanencia = tiempoPermanencia,
                 horaInicioSimulacion = horaInicio,
-                horaFinSimulacion = horaFin
+                horaFinSimulacion = horaFin,
+                conFluctuaciones = conFluctuaciones
             };
 
             ApiClient.Put<GuardarConfiguracionRequest, GuardarConfiguracionResponse>(
@@ -97,7 +112,8 @@ namespace Sme.UI
                 alTenerExito: _ =>
                 {
                     botonGuardar.interactable = true;
-                    ProyectoManager.GuardarConfiguracion(cantidadPisos, frecuenciaIngreso, tiempoPermanencia, horaInicio, horaFin);
+                    ProyectoManager.GuardarConfiguracion(cantidadPisos, frecuenciaIngreso, tiempoPermanencia,
+                        horaInicio, horaFin, conFluctuaciones);
                     alGuardarConfiguracionConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>

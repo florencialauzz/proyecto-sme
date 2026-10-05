@@ -160,7 +160,7 @@ class MotorSimulacionTest {
 
         // Llegadas en los minutos 1, 3, 5, 7 y 9; solo hay 2 plazas y nadie
         // se va antes del minuto 46.
-        ResultadoMotor resultado = motor.ejecutar(30, 45, 10);
+        ResultadoMotor resultado = motor.ejecutar(GeneradorDemanda.sinFluctuaciones(30, 45, 10), 10);
 
         assertEquals(5, resultado.vehiculosLlegados());
         assertEquals(3, resultado.vehiculosRechazados());
@@ -179,7 +179,7 @@ class MotorSimulacionTest {
 
         // Uno por minuto, cada uno se queda 1 minuto: el que llega libera la
         // plaza del anterior justo a tiempo, nadie es rechazado.
-        ResultadoMotor resultado = motor.ejecutar(60, 1, 30);
+        ResultadoMotor resultado = motor.ejecutar(GeneradorDemanda.sinFluctuaciones(60, 1, 30), 30);
 
         assertEquals(30, resultado.vehiculosLlegados());
         assertEquals(0, resultado.vehiculosRechazados());
@@ -190,10 +190,103 @@ class MotorSimulacionTest {
         GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 4, 6));
         MotorSimulacion motor = new MotorSimulacion(grilla);
 
-        ResultadoMotor resultado = motor.ejecutar(120, 100, 1);
+        ResultadoMotor resultado = motor.ejecutar(GeneradorDemanda.sinFluctuaciones(120, 100, 1), 1);
 
         assertEquals(2, resultado.vehiculosLlegados());
         assertEquals(2, resultado.curva().get(0).cantidadOcupadas());
+    }
+
+    @Test
+    void cadaVehiculoLiberaLaPlazaSegunSuPropiaPermanencia() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 4));
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+
+        // Los dos llegan en el minuto 0; uno se queda 3 minutos y el otro 5.
+        List<Vehiculo> vehiculos = List.of(new Vehiculo(0, 3), new Vehiculo(0, 5));
+        ResultadoMotor resultado = motor.ejecutar(vehiculos, 6);
+
+        assertEquals(2, resultado.curva().get(2).cantidadOcupadas());
+        assertEquals(1, resultado.curva().get(3).cantidadOcupadas());
+        assertEquals(0, resultado.curva().get(5).cantidadOcupadas());
+    }
+
+    @Test
+    void laSaturacionSeMideContraLasPlazasUsables() {
+        List<Pieza> piezas = pasilloRecto(2);
+        // Boca al norte, contra una celda vacía: el motor no la puede usar.
+        piezas.add(plaza(0, 4, 5, Direccion.NORTE));
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, piezas);
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+
+        // Uno por minuto y nadie se va: desde el minuto 0 la única plaza
+        // usable está ocupada y el resto se rechaza.
+        ResultadoMotor resultado = motor.ejecutar(GeneradorDemanda.sinFluctuaciones(60, 100, 4), 4);
+
+        assertEquals(1, resultado.plazasUsables());
+        List<IntervaloSaturacion> intervalos = Indicadores.periodosSaturacion(resultado.curva(),
+                resultado.plazasUsables());
+        assertEquals(List.of(new IntervaloSaturacion(0, 3)), intervalos);
+    }
+
+    // --- Demanda con fluctuaciones ---
+
+    @Test
+    void conFluctuacionesElSorteoSaleSiempreIgual() {
+        List<Vehiculo> primera = GeneradorDemanda.conFluctuaciones(30, 120, 600);
+        List<Vehiculo> segunda = GeneradorDemanda.conFluctuaciones(30, 120, 600);
+
+        assertEquals(primera, segunda);
+    }
+
+    @Test
+    void conFluctuacionesSeRespetaLaFrecuenciaEnPromedio() {
+        // 30/h durante 10 horas: 300 vehículos en promedio. Se acepta un 5%
+        // de diferencia, que es lo que puede alejarse un sorteo de este largo.
+        List<Vehiculo> vehiculos = GeneradorDemanda.conFluctuaciones(30, 120, 600);
+
+        assertTrue(vehiculos.size() >= 285 && vehiculos.size() <= 315,
+                "llegaron " + vehiculos.size());
+    }
+
+    @Test
+    void conFluctuacionesLosIntervalosQuedanDentroDelMargen() {
+        // 6/h: intervalo promedio de 10 minutos, sorteado entre 5 y 15. Al
+        // truncar al minuto, dos llegadas consecutivas quedan a entre 4 y 15
+        // minutos.
+        List<Vehiculo> vehiculos = GeneradorDemanda.conFluctuaciones(6, 120, 600);
+
+        assertTrue(vehiculos.get(0).minutoLlegada() >= 5 && vehiculos.get(0).minutoLlegada() < 15);
+        boolean hayIntervalosDistintos = false;
+        for (int i = 1; i < vehiculos.size(); i++) {
+            int intervalo = vehiculos.get(i).minutoLlegada() - vehiculos.get(i - 1).minutoLlegada();
+            assertTrue(intervalo >= 4 && intervalo <= 15, "intervalo de " + intervalo);
+            if (intervalo != 10) hayIntervalosDistintos = true;
+        }
+        assertTrue(hayIntervalosDistintos);
+    }
+
+    @Test
+    void conFluctuacionesLaPermanenciaQuedaDentroDelMargenYRespetaElPromedio() {
+        List<Vehiculo> vehiculos = GeneradorDemanda.conFluctuaciones(30, 120, 600);
+
+        int suma = 0;
+        for (Vehiculo vehiculo : vehiculos) {
+            assertTrue(vehiculo.tiempoPermanencia() >= 60 && vehiculo.tiempoPermanencia() <= 180,
+                    "permanencia de " + vehiculo.tiempoPermanencia());
+            suma += vehiculo.tiempoPermanencia();
+        }
+        double promedio = (double) suma / vehiculos.size();
+        assertTrue(promedio >= 114 && promedio <= 126, "promedio de " + promedio);
+    }
+
+    @Test
+    void sinFluctuacionesTodosSeQuedanLoMismo() {
+        List<Vehiculo> vehiculos = GeneradorDemanda.sinFluctuaciones(30, 120, 60);
+
+        assertEquals(30, vehiculos.size());
+        for (Vehiculo vehiculo : vehiculos) {
+            assertEquals(120, vehiculo.tiempoPermanencia());
+        }
     }
 
     // --- Indicadores ---
@@ -225,14 +318,14 @@ class MotorSimulacionTest {
 
     @Test
     void demandaSatisfechaSinLlegadasEsCien() {
-        ResultadoMotor resultado = new ResultadoMotor(List.of(), 0, 0);
+        ResultadoMotor resultado = new ResultadoMotor(List.of(), 0, 0, 0);
 
         assertEquals(new BigDecimal("100.00"), Indicadores.demandaSatisfecha(resultado));
     }
 
     @Test
     void demandaSatisfechaEsElPorcentajeDeAtendidos() {
-        ResultadoMotor resultado = new ResultadoMotor(List.of(), 5, 3);
+        ResultadoMotor resultado = new ResultadoMotor(List.of(), 5, 3, 0);
 
         assertEquals(new BigDecimal("40.00"), Indicadores.demandaSatisfecha(resultado));
     }

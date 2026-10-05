@@ -95,6 +95,7 @@ public class ProyectoService {
                 proyecto.getTiempoPermanencia(),
                 proyecto.getHoraInicioSimulacion(),
                 proyecto.getHoraFinSimulacion(),
+                proyecto.getConFluctuaciones(),
                 proyecto.getFilasGrilla(),
                 proyecto.getColumnasGrilla(),
                 piezas,
@@ -139,6 +140,7 @@ public class ProyectoService {
         proyecto.setTiempoPermanencia(request.tiempoPermanencia());
         proyecto.setHoraInicioSimulacion(request.horaInicioSimulacion());
         proyecto.setHoraFinSimulacion(request.horaFinSimulacion());
+        proyecto.setConFluctuaciones(!Boolean.FALSE.equals(request.conFluctuaciones()));
         proyectoRepository.save(proyecto);
 
         return new GuardarConfiguracionResponse(true);

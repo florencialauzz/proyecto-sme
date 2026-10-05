@@ -122,8 +122,10 @@ public final class Indicadores {
     // --- RF-28: período de saturación ---
 
     // Los tramos de minutos consecutivos en los que la ocupación alcanzó el
-    // total de plazas colocadas en la grilla. Lista vacía = no hubo
-    // saturación (Flujo Alternativo A1).
+    // total de plazas. Lista vacía = no hubo saturación (Flujo Alternativo
+    // A1). totalPlazas son las que el motor pudo usar
+    // (ResultadoMotor.plazasUsables), no todas las colocadas: si una no se
+    // puede alcanzar, el estacionamiento igual se llena sin ella.
     public static List<IntervaloSaturacion> periodosSaturacion(List<PuntoCurva> curva, int totalPlazas) {
         List<IntervaloSaturacion> intervalos = new ArrayList<>();
         Integer inicioTramo = null;
