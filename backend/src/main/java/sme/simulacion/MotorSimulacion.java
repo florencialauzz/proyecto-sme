@@ -7,17 +7,16 @@ import java.util.Map;
 
 // RF-26: recorre minuto a minuto el período configurado. En cada minuto
 // libera las plazas cuyo tiempo de permanencia venció, registra las llegadas
-// que tocan según la frecuencia, y a cada vehículo le asigna la plaza libre
-// más cercana a la entrada siguiendo el grafo de circulación. Si no hay
-// ninguna libre, el vehículo cuenta como rechazado (Flujo Alternativo A1).
+// de ese minuto, y a cada vehículo le asigna la plaza libre más cercana a la
+// entrada siguiendo el grafo de circulación. Si no hay ninguna libre, el
+// vehículo cuenta como rechazado (Flujo Alternativo A1).
 //
-// Es determinístico: la misma grilla y la misma configuración dan siempre el
-// mismo resultado, y dos proyectos con la misma configuración reciben
-// exactamente la misma demanda — eso es lo que hace justa la comparación de
-// RF-25.
+// Qué vehículos llegan y cuánto se queda cada uno no lo decide el motor: lo
+// arma GeneradorDemanda antes, con o sin fluctuaciones. Así la misma grilla y
+// la misma configuración dan siempre el mismo resultado, y dos proyectos con
+// la misma configuración reciben exactamente la misma demanda — eso es lo que
+// hace justa la comparación de RF-25.
 public class MotorSimulacion {
-
-    private static final int MINUTOS_POR_HORA = 60;
 
     // Valor de minutoLiberacion para una plaza desocupada, y respuesta de
     // primeraPlazaLibre cuando están todas ocupadas.
@@ -88,19 +87,16 @@ public class MotorSimulacion {
         return false;
     }
 
-    // Llegadas: la frecuencia viene en vehículos por hora. Cada minuto suma
-    // la frecuencia a un acumulador, y cada vez que el acumulador junta 60
-    // llega un vehículo. Con 30/h llega uno cada 2 minutos (el primero en el
-    // minuto 1); con 90/h, en algunos minutos llegan dos. Se hace en enteros
-    // para que no se acumule error de redondeo en períodos largos.
+    // Recorre el período minuto a minuto atendiendo a los vehículos de la
+    // demanda (GeneradorDemanda), que vienen ordenados por minuto de llegada.
     //
     // Permanencia: un vehículo que estaciona en el minuto m libera la plaza
-    // al empezar el minuto m + tiempoPermanencia, así que la ocupa durante
-    // exactamente tiempoPermanencia minutos.
+    // al empezar el minuto m + su tiempoPermanencia, así que la ocupa durante
+    // exactamente esa cantidad de minutos.
     //
     // La curva registra, para cada minuto, las plazas ocupadas después de
     // procesar las salidas y las llegadas de ese minuto.
-    public ResultadoMotor ejecutar(int frecuenciaPorHora, int tiempoPermanencia, int duracionMinutos) {
+    public ResultadoMotor ejecutar(List<Vehiculo> vehiculos, int duracionMinutos) {
         // Minuto en que se libera cada plaza de plazasPorCercania, o LIBRE.
         int[] minutoLiberacion = new int[plazasPorCercania.size()];
         for (int i = 0; i < minutoLiberacion.length; i++) {
@@ -108,7 +104,7 @@ public class MotorSimulacion {
         }
 
         List<PuntoCurva> curva = new ArrayList<>();
-        int acumuladorLlegadas = 0;
+        int siguienteVehiculo = 0;
         int vehiculosLlegados = 0;
         int vehiculosRechazados = 0;
         int ocupadas = 0;
@@ -121,16 +117,17 @@ public class MotorSimulacion {
                 }
             }
 
-            acumuladorLlegadas += frecuenciaPorHora;
-            while (acumuladorLlegadas >= MINUTOS_POR_HORA) {
-                acumuladorLlegadas -= MINUTOS_POR_HORA;
+            while (siguienteVehiculo < vehiculos.size()
+                    && vehiculos.get(siguienteVehiculo).minutoLlegada() == minuto) {
+                Vehiculo vehiculo = vehiculos.get(siguienteVehiculo);
+                siguienteVehiculo++;
                 vehiculosLlegados++;
 
                 int plazaLibre = primeraPlazaLibre(minutoLiberacion);
                 if (plazaLibre == SIN_PLAZA_LIBRE) {
                     vehiculosRechazados++;
                 } else {
-                    minutoLiberacion[plazaLibre] = minuto + tiempoPermanencia;
+                    minutoLiberacion[plazaLibre] = minuto + vehiculo.tiempoPermanencia();
                     ocupadas++;
                 }
             }
@@ -138,7 +135,7 @@ public class MotorSimulacion {
             curva.add(new PuntoCurva(minuto, ocupadas));
         }
 
-        return new ResultadoMotor(curva, vehiculosLlegados, vehiculosRechazados);
+        return new ResultadoMotor(curva, vehiculosLlegados, vehiculosRechazados, plazasPorCercania.size());
     }
 
     // El índice de la plaza libre más cercana a la entrada, o SIN_PLAZA_LIBRE

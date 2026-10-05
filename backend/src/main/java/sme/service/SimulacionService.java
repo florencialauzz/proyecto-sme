@@ -10,11 +10,13 @@ import sme.entity.Proyecto;
 import sme.exception.NegocioException;
 import sme.repository.PiezaRepository;
 import sme.repository.ProyectoRepository;
+import sme.simulacion.GeneradorDemanda;
 import sme.simulacion.GrillaSimulacion;
 import sme.simulacion.Indicadores;
 import sme.simulacion.IntervaloSaturacion;
 import sme.simulacion.MotorSimulacion;
 import sme.simulacion.ResultadoMotor;
+import sme.simulacion.Vehiculo;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -71,16 +73,24 @@ public class SimulacionService {
         int duracionMinutos = (int) Duration.between(proyecto.getHoraInicioSimulacion(),
                 proyecto.getHoraFinSimulacion()).toMinutes();
 
+        List<Vehiculo> vehiculos;
+        if (proyecto.getConFluctuaciones()) {
+            vehiculos = GeneradorDemanda.conFluctuaciones(proyecto.getFrecuenciaIngreso(),
+                    proyecto.getTiempoPermanencia(), duracionMinutos);
+        } else {
+            vehiculos = GeneradorDemanda.sinFluctuaciones(proyecto.getFrecuenciaIngreso(),
+                    proyecto.getTiempoPermanencia(), duracionMinutos);
+        }
+
         MotorSimulacion motor = new MotorSimulacion(grilla);
-        ResultadoMotor resultado = motor.ejecutar(proyecto.getFrecuenciaIngreso(), proyecto.getTiempoPermanencia(),
-                duracionMinutos);
+        ResultadoMotor resultado = motor.ejecutar(vehiculos, duracionMinutos);
 
         List<PuntoOcupacionResponse> curva = resultado.curva().stream()
                 .map(punto -> new PuntoOcupacionResponse(punto.minuto(), punto.cantidadOcupadas()))
                 .toList();
 
         List<IntervaloSaturacion> intervalos = Indicadores.periodosSaturacion(resultado.curva(),
-                grilla.getPlazas().size());
+                resultado.plazasUsables());
         List<PeriodoSaturacionResponse> periodosSaturacion = intervalos.stream()
                 .map(intervalo -> new PeriodoSaturacionResponse(intervalo.inicio(), intervalo.fin()))
                 .toList();

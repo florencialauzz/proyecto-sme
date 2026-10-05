@@ -41,6 +41,7 @@ namespace Sme.Models
         public int tiempoPermanencia;
         public string horaInicioSimulacion;
         public string horaFinSimulacion;
+        public bool conFluctuaciones;
         public int filasGrilla;
         public int columnasGrilla;
         public PiezaDto[] piezas;
@@ -56,6 +57,7 @@ namespace Sme.Models
         public int tiempoPermanencia;
         public string horaInicioSimulacion;
         public string horaFinSimulacion;
+        public bool conFluctuaciones;
     }
 
     [Serializable]

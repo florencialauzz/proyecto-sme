@@ -8,5 +8,8 @@ public record GuardarConfiguracionRequest(
         Integer frecuenciaIngreso,
         Integer tiempoPermanencia,
         LocalTime horaInicioSimulacion,
-        LocalTime horaFinSimulacion) {
+        LocalTime horaFinSimulacion,
+        // null se toma como true, el valor por defecto del checkbox: no es un
+        // dato que falte.
+        Boolean conFluctuaciones) {
 }
