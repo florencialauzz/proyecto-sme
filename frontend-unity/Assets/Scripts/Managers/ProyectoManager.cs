@@ -31,11 +31,25 @@ namespace Sme.Managers
         // para reconstruir la grilla al entrar a la escena Editor.
         public static PiezaDto[] PiezasACargar { get; private set; }
 
-        // RF-26: el resultado de la última simulación ejecutada, para que la
-        // escena Resultados lo muestre al abrir (mismo criterio que
-        // PiezasACargar para la escena Editor). No se persiste: guardarlo es
-        // RF-23, Iteración 4. null si todavía no se simuló este proyecto.
+        // RF-26: el resultado que muestra la escena Resultados al abrir (mismo
+        // criterio que PiezasACargar para la escena Editor): el de la última
+        // simulación ejecutada, o el guardado si se llegó desde "Ver
+        // resultados" en Inicio (RF-24). null si no hay ninguno.
         public static EjecutarSimulacionResponse UltimaSimulacion { get; private set; }
+
+        // RF-23: si UltimaSimulacion ya está guardada en el backend. La
+        // pantalla de resultados lo usa para habilitar o no el botón Guardar.
+        public static bool SimulacionGuardada { get; private set; }
+
+        // Si se llegó a Resultados desde "Ver resultados" en Inicio (true) o
+        // simulando desde el Editor (false): el botón Volver regresa a esa
+        // pantalla.
+        public static bool ResultadosAbiertosDesdeInicio { get; private set; }
+
+        // Si se llegó a Configuración desde el Editor (true) o desde Inicio, al
+        // crear o abrir un proyecto (false): el botón Volver regresa a esa
+        // pantalla.
+        public static bool ConfiguracionAbiertaDesdeEditor { get; private set; }
 
         public static void GuardarProyecto(long proyectoId, int filasGrilla, int columnasGrilla, string estado,
             PiezaDto[] piezasACargar = null, int cantidadPisos = 0, int frecuenciaIngreso = 0,
@@ -54,6 +68,14 @@ namespace Sme.Managers
             HoraFinSimulacion = horaFinSimulacion;
             ConFluctuaciones = conFluctuaciones;
             UltimaSimulacion = null;
+            SimulacionGuardada = false;
+            ResultadosAbiertosDesdeInicio = false;
+            ConfiguracionAbiertaDesdeEditor = false;
+        }
+
+        public static void MarcarConfiguracionAbiertaDesdeEditor()
+        {
+            ConfiguracionAbiertaDesdeEditor = true;
         }
 
         // RF-08 a RF-11: se llama después de guardar la configuración con éxito,
@@ -87,9 +109,20 @@ namespace Sme.Managers
             }
         }
 
-        public static void GuardarSimulacion(EjecutarSimulacionResponse resultado)
+        // yaGuardada: true cuando el resultado viene de GET /simulacion (RF-24),
+        // false cuando recién se ejecutó y todavía no se guardó.
+        public static void GuardarSimulacion(EjecutarSimulacionResponse resultado, bool yaGuardada,
+            bool abiertoDesdeInicio)
         {
             UltimaSimulacion = resultado;
+            SimulacionGuardada = yaGuardada;
+            ResultadosAbiertosDesdeInicio = abiertoDesdeInicio;
+        }
+
+        // RF-23: se llama después de que POST /simulacion/guardar salió bien.
+        public static void MarcarSimulacionGuardada()
+        {
+            SimulacionGuardada = true;
         }
 
         public static void CerrarProyecto()
@@ -106,6 +139,9 @@ namespace Sme.Managers
             HoraFinSimulacion = null;
             ConFluctuaciones = false;
             UltimaSimulacion = null;
+            SimulacionGuardada = false;
+            ResultadosAbiertosDesdeInicio = false;
+            ConfiguracionAbiertaDesdeEditor = false;
         }
     }
 }

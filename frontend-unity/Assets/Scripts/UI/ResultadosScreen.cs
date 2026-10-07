@@ -1,4 +1,3 @@
-using System.Globalization;
 using Sme.Grid;
 using Sme.Managers;
 using Sme.Models;
@@ -9,46 +8,103 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // Controlador de la escena Resultados. En Iteración 3 muestra la
-    // eficiencia espacial con su calificación (RF-15) y la curva de ocupación
-    // (RF-27). En Iteración 4 esta misma pantalla pasa a ser la de RF-24:
-    // se le suman saturación, demanda, puntuación y el botón de guardar.
+    // Controlador de la escena Resultados (RF-24): en una sola pantalla, la
+    // curva de ocupación (RF-27), la eficiencia espacial (RF-15), el período
+    // de saturación (RF-28), la demanda satisfecha (RF-29) y la puntuación
+    // general (RF-30), más el botón para guardar los resultados (RF-23).
     //
-    // El resultado lo deja EditorScreen en ProyectoManager.UltimaSimulacion
-    // antes de cambiar de escena.
+    // El resultado lo deja en ProyectoManager.UltimaSimulacion EditorScreen
+    // (recién ejecutado) o InicioScreen (el guardado, desde "Ver resultados").
     public class ResultadosScreen : MonoBehaviour
     {
         [SerializeField] private TMP_Text textoEficiencia;
+        [SerializeField] private TMP_Text textoSaturacion;
+        [SerializeField] private TMP_Text textoDemanda;
+        [SerializeField] private TMP_Text textoPuntuacion;
         // Las etiquetas de los ejes (horas y plazas) las arma el gráfico.
         [SerializeField] private GraficoCurva grafico;
 
+        // RF-23
+        [SerializeField] private Button botonGuardarResultados;
+        [SerializeField] private TMP_Text textoEstadoGuardado;
+
+        // Volver regresa a la pantalla desde la que se llegó: al Editor si se
+        // acaba de simular, a Inicio si se entró por "Ver resultados".
         [SerializeField] private Button botonVolver;
         [SerializeField] private UnityEvent alVolver;
+        [SerializeField] private UnityEvent alVolverAInicio;
 
         private void Awake()
         {
-            botonVolver.onClick.AddListener(() => alVolver?.Invoke());
+            botonVolver.onClick.AddListener(Volver);
+            botonGuardarResultados.onClick.AddListener(GuardarResultados);
+        }
+
+        private void Volver()
+        {
+            if (ProyectoManager.ResultadosAbiertosDesdeInicio)
+            {
+                alVolverAInicio?.Invoke();
+            }
+            else
+            {
+                alVolver?.Invoke();
+            }
         }
 
         private void Start()
         {
+            textoEstadoGuardado.text = string.Empty;
+
             EjecutarSimulacionResponse resultado = ProyectoManager.UltimaSimulacion;
             if (resultado == null)
             {
+                // RF-23, A1: sin simulación no hay nada que guardar.
                 textoEficiencia.text = "Todavía no se ejecutó ninguna simulación.";
+                textoSaturacion.text = string.Empty;
+                textoDemanda.text = string.Empty;
+                textoPuntuacion.text = string.Empty;
+                botonGuardarResultados.interactable = false;
                 return;
             }
 
-            MostrarEficiencia(resultado);
+            textoEficiencia.text = FormatoIndicadores.Eficiencia(resultado);
+            textoSaturacion.text = FormatoIndicadores.Saturacion(resultado, ProyectoManager.HoraInicioSimulacion);
+            textoDemanda.text = FormatoIndicadores.Demanda(resultado);
+            textoPuntuacion.text = FormatoIndicadores.Puntuacion(resultado);
             MostrarCurva(resultado);
+
+            if (ProyectoManager.SimulacionGuardada)
+            {
+                botonGuardarResultados.interactable = false;
+                textoEstadoGuardado.text = "Estos resultados ya están guardados.";
+            }
+            else
+            {
+                botonGuardarResultados.interactable = true;
+            }
         }
 
-        // RF-15: porcentaje de celdas de la grilla ocupadas por plazas, y su
-        // calificación contra el techo teórico (la calcula el backend).
-        private void MostrarEficiencia(EjecutarSimulacionResponse resultado)
+        // RF-23: reenvía al backend el mismo resultado que devolvió /ejecutar.
+        // Si el proyecto ya tenía resultados, el backend los reemplaza (A2).
+        private void GuardarResultados()
         {
-            string porcentaje = resultado.eficienciaEspacial.ToString("0.00", CultureInfo.InvariantCulture);
-            textoEficiencia.text = $"Eficiencia espacial: {porcentaje}% ({resultado.calificacionEficiencia})";
+            botonGuardarResultados.interactable = false;
+            textoEstadoGuardado.text = "Guardando...";
+
+            ApiClient.Post<EjecutarSimulacionResponse, GuardarSimulacionResponse>(
+                $"/proyectos/{ProyectoManager.ProyectoId}/simulacion/guardar",
+                ProyectoManager.UltimaSimulacion,
+                alTenerExito: respuesta =>
+                {
+                    ProyectoManager.MarcarSimulacionGuardada();
+                    textoEstadoGuardado.text = "Resultados guardados.";
+                },
+                alFallar: (mensaje, codigo) =>
+                {
+                    botonGuardarResultados.interactable = true;
+                    textoEstadoGuardado.text = mensaje;
+                });
         }
 
         // RF-27: tiempo en el eje horizontal, plazas ocupadas en el vertical.
@@ -68,9 +124,10 @@ namespace Sme.UI
         }
 
         // La respuesta de la simulación no trae el total de plazas, pero las
-        // piezas guardadas justo antes de simular están en ProyectoManager
-        // (EditorScreen guarda y después simula). Cada Plaza es una sola
-        // fila, en su ancla, así que se cuentan las filas de tipo PLAZA.
+        // piezas guardadas del proyecto están en ProyectoManager (EditorScreen
+        // guarda antes de simular, InicioScreen las trae al abrir). Cada Plaza
+        // es una sola fila, en su ancla, así que se cuentan las filas de tipo
+        // PLAZA.
         private static int ContarPlazasGuardadas()
         {
             PiezaDto[] piezas = ProyectoManager.PiezasACargar;

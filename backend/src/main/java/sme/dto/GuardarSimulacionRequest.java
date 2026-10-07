@@ -3,10 +3,10 @@ package sme.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
-// RF-26: respuesta de POST /simulacion/ejecutar (contratos/api-contract.md).
-// Viajan todos los indicadores en una sola respuesta. GET /simulacion
-// devuelve el mismo shape con el último resultado guardado (RF-24).
-public record EjecutarSimulacionResponse(
+// RF-23: POST /simulacion/guardar. El cliente reenvía el mismo resultado que
+// recibió de /ejecutar (mismo shape que EjecutarSimulacionResponse), así el
+// backend no tiene que recordar nada entre las dos llamadas.
+public record GuardarSimulacionRequest(
         BigDecimal eficienciaEspacial,
         String calificacionEficiencia,
         List<PuntoOcupacionResponse> curvaOcupacion,

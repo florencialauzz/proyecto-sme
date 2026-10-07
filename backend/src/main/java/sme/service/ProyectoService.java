@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sme.dto.CrearProyectoRequest;
 import sme.dto.CrearProyectoResponse;
+import sme.dto.DuplicarProyectoResponse;
+import sme.dto.EliminarProyectoResponse;
 import sme.dto.GuardarConfiguracionRequest;
 import sme.dto.GuardarConfiguracionResponse;
 import sme.dto.GuardarGrillaRequest;
@@ -26,6 +28,9 @@ import java.util.List;
 
 @Service
 public class ProyectoService {
+
+    // Largo del nombre (VARCHAR(100)) menos lo que ocupa " (copia NN)".
+    private static final int LARGO_MAXIMO_BASE_COPIA = 88;
 
     private final ProyectoRepository proyectoRepository;
     private final PiezaRepository piezaRepository;
@@ -100,6 +105,76 @@ public class ProyectoService {
                 proyecto.getColumnasGrilla(),
                 piezas,
                 proyecto.getEstado().name());
+    }
+
+    // Duplicar un proyecto desde Inicio (sin RF propio todavía, ver
+    // pendientes.md): copia la configuración y la grilla, no los resultados
+    // de simulación — la copia es para probar una variante del diseño, y
+    // hasta que se simule no tiene resultados propios.
+    @Transactional
+    public DuplicarProyectoResponse duplicar(Long usuarioId, Long proyectoId) {
+        Proyecto original = obtenerProyectoDelUsuario(usuarioId, proyectoId);
+
+        Proyecto copia = new Proyecto();
+        copia.setUsuarioId(usuarioId);
+        copia.setNombre(nombreDeCopia(usuarioId, original.getNombre()));
+        copia.setCantidadPisos(original.getCantidadPisos());
+        copia.setFrecuenciaIngreso(original.getFrecuenciaIngreso());
+        copia.setTiempoPermanencia(original.getTiempoPermanencia());
+        copia.setHoraInicioSimulacion(original.getHoraInicioSimulacion());
+        copia.setHoraFinSimulacion(original.getHoraFinSimulacion());
+        copia.setConFluctuaciones(original.getConFluctuaciones());
+        copia.setFilasGrilla(original.getFilasGrilla());
+        copia.setColumnasGrilla(original.getColumnasGrilla());
+        copia.setEstado(original.getEstado());
+        copia = proyectoRepository.save(copia);
+
+        Long copiaId = copia.getId();
+        List<Pieza> piezasCopiadas = piezaRepository.findByProyectoId(original.getId()).stream()
+                .map(pieza -> {
+                    Pieza nueva = new Pieza();
+                    nueva.setProyectoId(copiaId);
+                    nueva.setPiso(pieza.getPiso());
+                    nueva.setFila(pieza.getFila());
+                    nueva.setColumna(pieza.getColumna());
+                    nueva.setTipo(pieza.getTipo());
+                    nueva.setCaraAcceso(pieza.getCaraAcceso());
+                    nueva.setDireccion(pieza.getDireccion());
+                    nueva.setEsAccesible(pieza.getEsAccesible());
+                    nueva.setEsCrucePeatonal(pieza.getEsCrucePeatonal());
+                    nueva.setSentidoVertical(pieza.getSentidoVertical());
+                    return nueva;
+                })
+                .toList();
+        piezaRepository.saveAll(piezasCopiadas);
+
+        return new DuplicarProyectoResponse(copia.getId(), copia.getNombre());
+    }
+
+    // "Centro" → "Centro (copia)"; si ya existe, "Centro (copia 2)", y así.
+    // El nombre tiene que ser único por usuario (uq_proyecto_usuario_nombre).
+    // La columna admite 100 caracteres: con un nombre muy largo se recorta
+    // el original para que entre el sufijo.
+    private String nombreDeCopia(Long usuarioId, String nombreProyecto) {
+        String nombreOriginal = nombreProyecto.length() > LARGO_MAXIMO_BASE_COPIA
+                ? nombreProyecto.substring(0, LARGO_MAXIMO_BASE_COPIA)
+                : nombreProyecto;
+        String nombre = nombreOriginal + " (copia)";
+        int numero = 2;
+        while (proyectoRepository.existsByUsuarioIdAndNombre(usuarioId, nombre)) {
+            nombre = nombreOriginal + " (copia " + numero + ")";
+            numero++;
+        }
+        return nombre;
+    }
+
+    // Borrar un proyecto desde Inicio (sin RF propio todavía, ver
+    // pendientes.md). Las piezas y los resultados de simulación los borra la
+    // base en cascada (contratos/esquema-bd.md), igual que en RF-05.
+    public EliminarProyectoResponse eliminar(Long usuarioId, Long proyectoId) {
+        Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
+        proyectoRepository.delete(proyecto);
+        return new EliminarProyectoResponse(true);
     }
 
     // RF-08 a RF-11: cada validación corresponde al Flujo Alternativo A1 de su

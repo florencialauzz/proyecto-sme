@@ -179,7 +179,7 @@ namespace Sme.UI
                 new EjecutarSimulacionRequest(),
                 alTenerExito: resultado =>
                 {
-                    ProyectoManager.GuardarSimulacion(resultado);
+                    ProyectoManager.GuardarSimulacion(resultado, yaGuardada: false, abiertoDesdeInicio: false);
                     alIrAResultados?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>
@@ -207,6 +207,7 @@ namespace Sme.UI
         // el mismo proyecto ya modelado.
         private void IrAConfiguracion()
         {
+            ProyectoManager.MarcarConfiguracionAbiertaDesdeEditor();
             alIrAConfiguracion?.Invoke();
         }
     }
