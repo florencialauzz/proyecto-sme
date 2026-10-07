@@ -13,11 +13,9 @@ namespace Sme.Models
     {
     }
 
-    // puntuacionGeneral y calificacionTexto (RF-30) no están acá a propósito:
-    // el backend los manda en null hasta que se definan los pesos, y
-    // JsonUtility no tiene cómo representar un número null (lo leería como
-    // 0). Los campos del JSON que no existen en la clase se ignoran. Se
-    // agregan en Iteración 4, junto con la pantalla que los muestra.
+    // Mismo shape para las tres rutas de simulación: lo que devuelve
+    // /ejecutar, lo que se reenvía a /guardar (RF-23) y lo que devuelve
+    // GET /simulacion con el último resultado guardado (RF-24, RF-25).
     [Serializable]
     public class EjecutarSimulacionResponse
     {
@@ -27,6 +25,15 @@ namespace Sme.Models
         public float demandaSatisfecha;
         public int vehiculosRechazados;
         public PeriodoSaturacionDto[] periodosSaturacion;
+        public float puntuacionGeneral;
+        public string calificacionTexto;
+    }
+
+    // RF-23: POST /api/proyectos/{id}/simulacion/guardar.
+    [Serializable]
+    public class GuardarSimulacionResponse
+    {
+        public bool guardado;
     }
 
     // RF-27: plazas ocupadas en ese minuto, contando desde la hora de inicio.

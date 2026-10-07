@@ -7,7 +7,7 @@ import java.util.List;
 
 // Los indicadores que se calculan a partir de la grilla y de lo que registró
 // el motor. Se calculan todos en la misma corrida (arquitectura/decisiones.md);
-// en Iteración 3 Unity muestra solo la eficiencia y la curva.
+// Unity los muestra juntos en la pantalla de resultados (RF-24).
 public final class Indicadores {
 
     // Cada plaza ocupa 2 celdas (ancla + fondo) y se guarda como una sola fila.
@@ -36,6 +36,14 @@ public final class Indicadores {
     // Cortes de calificación, como fracción del techo.
     private static final double UMBRAL_BUENO = 0.90;
     private static final double UMBRAL_REGULAR = 0.70;
+
+    // --- RF-30: pesos y cortes de la puntuación general ---
+    // PROVISORIOS: el caso de uso no los fija (pendientes.md). Los pesos
+    // tienen que sumar 1.
+    private static final double PESO_EFICIENCIA = 0.50;
+    private static final double PESO_DEMANDA = 0.50;
+    private static final double PUNTAJE_BUENO = 80;
+    private static final double PUNTAJE_REGULAR = 60;
 
     private Indicadores() {
     }
@@ -149,6 +157,36 @@ public final class Indicadores {
         }
 
         return intervalos;
+    }
+
+    // --- RF-30: puntuación general ---
+
+    // Promedio ponderado de 0 a 100 entre la eficiencia y la demanda
+    // satisfecha. La eficiencia que entra no es la cruda (que en 15×15 nunca
+    // pasa de ~78%, así que ningún diseño podría sacar 100) sino la relativa
+    // al techo teórico, la misma contra la que se califica RF-15. Con tope en
+    // 100: el techo es una estimación y un diseño podría superarlo apenas.
+    public static BigDecimal puntuacionGeneral(GrillaSimulacion grilla, BigDecimal demandaSatisfecha) {
+        double celdasDePlaza = grilla.getPlazas().size() * CELDAS_POR_PLAZA;
+        double eficienciaRelativaAlTecho = celdasDePlaza / techoCeldasDePlaza(grilla) * 100;
+        if (eficienciaRelativaAlTecho > 100) {
+            eficienciaRelativaAlTecho = 100;
+        }
+
+        double puntaje = PESO_EFICIENCIA * eficienciaRelativaAlTecho
+                + PESO_DEMANDA * demandaSatisfecha.doubleValue();
+        return BigDecimal.valueOf(puntaje).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public static String calificacionPuntuacion(BigDecimal puntuacionGeneral) {
+        double puntaje = puntuacionGeneral.doubleValue();
+        if (puntaje >= PUNTAJE_BUENO) {
+            return "Bueno";
+        }
+        if (puntaje >= PUNTAJE_REGULAR) {
+            return "Regular";
+        }
+        return "Deficiente";
     }
 
     // Porcentaje con dos decimales, como DECIMAL(5,2) en contratos/esquema-bd.md.

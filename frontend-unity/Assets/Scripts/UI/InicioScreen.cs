@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Sme.Managers;
 using Sme.Models;
 using TMPro;
@@ -8,11 +9,16 @@ using UnityEngine.UI;
 namespace Sme.UI
 {
     // RF-06: Cerrar sesión, RF-07: Ingresar nombre de proyecto, RF-22: Listar
-    // proyectos. Requiere que los campos de abajo estén asignados en el
-    // Inspector, sobre el Canvas de la pantalla de inicio (a la que se llega
-    // después de iniciar sesión).
+    // proyectos, RF-24: ver los resultados guardados de un proyecto, RF-25:
+    // Comparar resultados de proyectos, y duplicar o borrar un proyecto (sin
+    // RF propio todavía, ver pendientes.md). Requiere que los campos de abajo
+    // estén asignados en el Inspector, sobre el Canvas de la pantalla de
+    // inicio (a la que se llega después de iniciar sesión).
     public class InicioScreen : MonoBehaviour
     {
+        // RF-25 necesita dos proyectos seleccionados a la vez.
+        private const int MaximoSeleccionados = 2;
+
         [SerializeField] private Button botonCerrarSesion;
 
         [SerializeField] private TMP_InputField campoNombreProyecto;
@@ -20,23 +26,45 @@ namespace Sme.UI
         [SerializeField] private TMP_Text textoError;
 
         [SerializeField] private RectTransform contenedorProyectos;
-        [SerializeField] private ToggleGroup grupoProyectos;
         [SerializeField] private GameObject prefabItemProyecto;
         [SerializeField] private TMP_Text textoSinProyectos;
         [SerializeField] private Button botonAbrirProyecto;
+        [SerializeField] private Button botonVerResultados;
+        [SerializeField] private Button botonComparar;
+        [SerializeField] private PanelComparacion panelComparacion;
+        [SerializeField] private Button botonDuplicar;
+        [SerializeField] private Button botonEliminar;
+
+        // Confirmación antes de borrar: no se puede deshacer.
+        [SerializeField] private GameObject panelConfirmarEliminar;
+        [SerializeField] private TMP_Text textoConfirmarEliminar;
+        [SerializeField] private Button botonConfirmarEliminar;
+        [SerializeField] private Button botonCancelarEliminar;
 
         [SerializeField] private UnityEvent alCerrarSesion;
         [SerializeField] private UnityEvent alCrearProyectoConExito;
         [SerializeField] private UnityEvent alAbrirProyectoConExito;
+        [SerializeField] private UnityEvent alVerResultadosConExito;
 
-        private long? proyectoSeleccionadoId;
+        // En el orden en que se tildaron: si se tilda un tercero, se destilda
+        // el más viejo.
+        private readonly List<long> proyectosSeleccionados = new List<long>();
+        private readonly Dictionary<long, Toggle> togglesPorProyecto = new Dictionary<long, Toggle>();
+        private readonly Dictionary<long, string> nombresPorProyecto = new Dictionary<long, string>();
 
         private void Awake()
         {
             botonCerrarSesion.onClick.AddListener(CerrarSesion);
             botonCrearProyecto.onClick.AddListener(CrearProyecto);
             botonAbrirProyecto.onClick.AddListener(AbrirProyectoSeleccionado);
-            botonAbrirProyecto.interactable = false;
+            botonVerResultados.onClick.AddListener(VerResultadosSeleccionado);
+            botonComparar.onClick.AddListener(CompararSeleccionados);
+            botonDuplicar.onClick.AddListener(DuplicarSeleccionado);
+            botonEliminar.onClick.AddListener(PedirConfirmacionEliminar);
+            botonConfirmarEliminar.onClick.AddListener(EliminarSeleccionado);
+            botonCancelarEliminar.onClick.AddListener(CerrarConfirmacionEliminar);
+            panelConfirmarEliminar.SetActive(false);
+            ActualizarBotonesSeleccion();
             CargarProyectos();
         }
 
@@ -48,9 +76,9 @@ namespace Sme.UI
             OcultarError();
         }
 
-        // RF-22: la lista se trae una vez al entrar a la pantalla — no hace
-        // falta re-consultarla dentro de la sesión, un proyecto recién creado
-        // navega directo al Editor, no vuelve a esta pantalla.
+        // RF-22: la lista se trae al entrar a la pantalla, y de nuevo después
+        // de duplicar o borrar un proyecto. Un proyecto recién creado navega
+        // directo al Editor, no vuelve a esta pantalla.
         private void CargarProyectos()
         {
             ApiClient.ListarProyectos(
@@ -62,38 +90,68 @@ namespace Sme.UI
                     }
 
                     textoSinProyectos.gameObject.SetActive(proyectos.Length == 0);
-                    proyectoSeleccionadoId = null;
-                    botonAbrirProyecto.interactable = false;
+                    proyectosSeleccionados.Clear();
+                    togglesPorProyecto.Clear();
+                    nombresPorProyecto.Clear();
+                    ActualizarBotonesSeleccion();
 
                     foreach (ProyectoResumenDto proyecto in proyectos)
                     {
                         GameObject item = Instantiate(prefabItemProyecto, contenedorProyectos);
                         item.GetComponentInChildren<TMP_Text>().text = proyecto.nombre;
 
+                        // Sin ToggleGroup: se pueden tildar hasta dos (RF-25).
                         Toggle toggle = item.GetComponent<Toggle>();
-                        toggle.group = grupoProyectos;
+                        toggle.isOn = false;
 
                         long proyectoId = proyecto.proyectoId;
+                        togglesPorProyecto[proyectoId] = toggle;
+                        nombresPorProyecto[proyectoId] = proyecto.nombre;
                         toggle.onValueChanged.AddListener(seleccionado => SeleccionarProyecto(seleccionado, proyectoId));
                     }
                 },
                 alFallar: (mensaje, codigo) => MostrarError(mensaje));
         }
 
-        // El ToggleGroup ya garantiza que como mucho uno esté prendido — acá
-        // solo hace falta recordar cuál, para el botón Abrir.
         private void SeleccionarProyecto(bool seleccionado, long proyectoId)
         {
-            if (!seleccionado) return;
+            if (seleccionado)
+            {
+                proyectosSeleccionados.Add(proyectoId);
+                if (proyectosSeleccionados.Count > MaximoSeleccionados)
+                {
+                    // Destildarlo dispara de nuevo este método con
+                    // seleccionado = false, que lo saca de la lista.
+                    long masViejo = proyectosSeleccionados[0];
+                    togglesPorProyecto[masViejo].isOn = false;
+                }
+            }
+            else
+            {
+                proyectosSeleccionados.Remove(proyectoId);
+            }
 
-            proyectoSeleccionadoId = proyectoId;
-            botonAbrirProyecto.interactable = true;
+            ActualizarBotonesSeleccion();
+        }
+
+        // Abrir, Ver resultados, Duplicar y Eliminar actúan sobre un solo
+        // proyecto; Comparar, sobre dos.
+        private void ActualizarBotonesSeleccion()
+        {
+            bool unoSeleccionado = proyectosSeleccionados.Count == 1;
+            bool dosSeleccionados = proyectosSeleccionados.Count == 2;
+
+            botonAbrirProyecto.interactable = unoSeleccionado;
+            botonVerResultados.interactable = unoSeleccionado;
+            botonDuplicar.interactable = unoSeleccionado;
+            botonEliminar.interactable = unoSeleccionado;
+            botonComparar.interactable = dosSeleccionados;
         }
 
         private void AbrirProyectoSeleccionado()
         {
-            if (!proyectoSeleccionadoId.HasValue) return;
-            AbrirProyecto(proyectoSeleccionadoId.Value);
+            if (proyectosSeleccionados.Count != 1) return;
+            AbrirProyecto(proyectosSeleccionados[0]);
         }
 
         // Abrir un proyecto guardado para seguir editándolo: trae la grilla
@@ -101,31 +159,178 @@ namespace Sme.UI
         // la reconstruya al entrar a la escena Editor.
         private void AbrirProyecto(long proyectoId)
         {
+            OcultarError();
             botonAbrirProyecto.interactable = false;
 
             ApiClient.ObtenerProyecto(
                 proyectoId,
                 alTenerExito: detalle =>
                 {
-                    ProyectoManager.GuardarProyecto(
-                        detalle.proyectoId,
-                        detalle.filasGrilla,
-                        detalle.columnasGrilla,
-                        detalle.estado,
-                        detalle.piezas,
-                        detalle.cantidadPisos,
-                        detalle.frecuenciaIngreso,
-                        detalle.tiempoPermanencia,
-                        detalle.horaInicioSimulacion,
-                        detalle.horaFinSimulacion,
-                        detalle.conFluctuaciones);
+                    CargarProyectoEnMemoria(detalle);
                     alAbrirProyectoConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    botonAbrirProyecto.interactable = true;
+                    ActualizarBotonesSeleccion();
                     MostrarError(mensaje);
                 });
+        }
+
+        // RF-24: "el usuario accede a la pantalla de resultados del proyecto".
+        // Trae el proyecto (la pantalla necesita el horario y las plazas para
+        // la curva) y después sus resultados guardados.
+        private void VerResultadosSeleccionado()
+        {
+            if (proyectosSeleccionados.Count != 1) return;
+            long proyectoId = proyectosSeleccionados[0];
+
+            OcultarError();
+            botonVerResultados.interactable = false;
+
+            ApiClient.ObtenerProyecto(
+                proyectoId,
+                alTenerExito: detalle =>
+                {
+                    ApiClient.ObtenerResultadoSimulacion(
+                        proyectoId,
+                        alTenerExito: resultado =>
+                        {
+                            CargarProyectoEnMemoria(detalle);
+                            ProyectoManager.GuardarSimulacion(resultado, yaGuardada: true, abiertoDesdeInicio: true);
+                            alVerResultadosConExito?.Invoke();
+                        },
+                        alFallar: (mensaje, codigo) =>
+                        {
+                            ActualizarBotonesSeleccion();
+                            MostrarError(mensaje);
+                        });
+                },
+                alFallar: (mensaje, codigo) =>
+                {
+                    ActualizarBotonesSeleccion();
+                    MostrarError(mensaje);
+                });
+        }
+
+        // RF-25: trae los resultados guardados de los dos proyectos, uno
+        // después del otro, y los muestra en los modales. Si alguno no tiene
+        // resultados, Flujo Alternativo A1: aviso y se vuelve a la lista.
+        private void CompararSeleccionados()
+        {
+            if (proyectosSeleccionados.Count != 2) return;
+            long primerId = proyectosSeleccionados[0];
+            long segundoId = proyectosSeleccionados[1];
+
+            OcultarError();
+            botonComparar.interactable = false;
+
+            ApiClient.ObtenerResultadoSimulacion(
+                primerId,
+                alTenerExito: primerResultado =>
+                {
+                    ApiClient.ObtenerResultadoSimulacion(
+                        segundoId,
+                        alTenerExito: segundoResultado =>
+                        {
+                            ActualizarBotonesSeleccion();
+                            panelComparacion.Mostrar(
+                                nombresPorProyecto[primerId], primerResultado,
+                                nombresPorProyecto[segundoId], segundoResultado);
+                        },
+                        alFallar: NotificarErrorComparacion);
+                },
+                alFallar: NotificarErrorComparacion);
+        }
+
+        private void NotificarErrorComparacion(string mensaje, string codigo)
+        {
+            ActualizarBotonesSeleccion();
+
+            if (codigo == "SIN_RESULTADOS")
+            {
+                MostrarError("Ambos proyectos deben contar con resultados de simulación guardados para poder compararlos.");
+            }
+            else
+            {
+                MostrarError(mensaje);
+            }
+        }
+
+        // Duplicar: el backend copia la configuración y la grilla (no los
+        // resultados) con el nombre "<nombre> (copia)". La copia aparece al
+        // recargar la lista.
+        private void DuplicarSeleccionado()
+        {
+            if (proyectosSeleccionados.Count != 1) return;
+            long proyectoId = proyectosSeleccionados[0];
+
+            OcultarError();
+            botonDuplicar.interactable = false;
+
+            ApiClient.Post<DuplicarProyectoRequest, DuplicarProyectoResponse>(
+                $"/proyectos/{proyectoId}/duplicar",
+                new DuplicarProyectoRequest(),
+                alTenerExito: respuesta => CargarProyectos(),
+                alFallar: (mensaje, codigo) =>
+                {
+                    ActualizarBotonesSeleccion();
+                    MostrarError(mensaje);
+                });
+        }
+
+        private void PedirConfirmacionEliminar()
+        {
+            if (proyectosSeleccionados.Count != 1) return;
+            long proyectoId = proyectosSeleccionados[0];
+
+            textoConfirmarEliminar.text =
+                $"¿Eliminar el proyecto \"{nombresPorProyecto[proyectoId]}\"? Se borran su diseño y sus resultados, y no se puede deshacer.";
+            botonConfirmarEliminar.interactable = true;
+            panelConfirmarEliminar.SetActive(true);
+        }
+
+        private void CerrarConfirmacionEliminar()
+        {
+            panelConfirmarEliminar.SetActive(false);
+        }
+
+        private void EliminarSeleccionado()
+        {
+            if (proyectosSeleccionados.Count != 1) return;
+            long proyectoId = proyectosSeleccionados[0];
+
+            OcultarError();
+            botonConfirmarEliminar.interactable = false;
+
+            ApiClient.Delete<EliminarProyectoRequest, EliminarProyectoResponse>(
+                $"/proyectos/{proyectoId}",
+                new EliminarProyectoRequest(),
+                alTenerExito: respuesta =>
+                {
+                    CerrarConfirmacionEliminar();
+                    CargarProyectos();
+                },
+                alFallar: (mensaje, codigo) =>
+                {
+                    CerrarConfirmacionEliminar();
+                    MostrarError(mensaje);
+                });
+        }
+
+        private static void CargarProyectoEnMemoria(ProyectoDetalleResponse detalle)
+        {
+            ProyectoManager.GuardarProyecto(
+                detalle.proyectoId,
+                detalle.filasGrilla,
+                detalle.columnasGrilla,
+                detalle.estado,
+                detalle.piezas,
+                detalle.cantidadPisos,
+                detalle.frecuenciaIngreso,
+                detalle.tiempoPermanencia,
+                detalle.horaInicioSimulacion,
+                detalle.horaFinSimulacion,
+                detalle.conFluctuaciones);
         }
 
         private void CerrarSesion()

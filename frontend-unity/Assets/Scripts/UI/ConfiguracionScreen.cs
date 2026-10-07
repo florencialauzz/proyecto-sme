@@ -29,11 +29,31 @@ namespace Sme.UI
         [SerializeField] private Button botonGuardar;
         [SerializeField] private TMP_Text textoError;
 
+        // Volver sin guardar: regresa a la pantalla desde la que se llegó (el
+        // Editor, o Inicio si se acaba de crear o abrir el proyecto). Lo que se
+        // haya escrito en el formulario se descarta.
+        [SerializeField] private Button botonVolver;
+
         [SerializeField] private UnityEvent alGuardarConfiguracionConExito;
+        [SerializeField] private UnityEvent alVolverAlEditor;
+        [SerializeField] private UnityEvent alVolverAInicio;
 
         private void Awake()
         {
             botonGuardar.onClick.AddListener(Guardar);
+            botonVolver.onClick.AddListener(Volver);
+        }
+
+        private void Volver()
+        {
+            if (ProyectoManager.ConfiguracionAbiertaDesdeEditor)
+            {
+                alVolverAlEditor?.Invoke();
+            }
+            else
+            {
+                alVolverAInicio?.Invoke();
+            }
         }
 
         // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no

@@ -155,6 +155,38 @@ namespace Sme.Managers
             };
         }
 
+        // RF-24 y RF-25: GET /proyectos/{id}/simulacion, el último resultado
+        // guardado. Si el proyecto no tiene, llega a alFallar con el código
+        // SIN_RESULTADOS.
+        public static void ObtenerResultadoSimulacion(
+            long proyectoId,
+            Action<EjecutarSimulacionResponse> alTenerExito,
+            Action<string, string> alFallar)
+        {
+            var request = UnityWebRequest.Get(BaseUrl + "/proyectos/" + proyectoId + "/simulacion");
+
+            if (SesionManager.HaySesionActiva)
+            {
+                request.SetRequestHeader("Authorization", "Bearer " + SesionManager.Token);
+            }
+
+            request.SendWebRequest().completed += _ =>
+            {
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    EjecutarSimulacionResponse respuesta =
+                        JsonUtility.FromJson<EjecutarSimulacionResponse>(request.downloadHandler.text);
+                    alTenerExito(respuesta);
+                }
+                else
+                {
+                    NotificarError(request.downloadHandler.text, alFallar);
+                }
+
+                request.Dispose();
+            };
+        }
+
         // RF-03, punto 5: se consulta antes de pedir la respuesta, para mostrar la
         // pregunta asociada al nombre de usuario ingresado. Ruta pública, no manda
         // Authorization (todavía no hay sesión en este punto del flujo).

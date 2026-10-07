@@ -351,4 +351,23 @@ class MotorSimulacionTest {
 
         assertTrue(Indicadores.periodosSaturacion(curva, 2).isEmpty());
     }
+
+    @Test
+    void puntuacionGeneralPonderaEficienciaRelativaAlTechoYDemanda() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 4));
+
+        // 4 celdas de plaza / 175.2 de techo = 2.28%; 0.5 * 2.28 + 0.5 * 100 = 51.14
+        BigDecimal puntuacion = Indicadores.puntuacionGeneral(grilla, new BigDecimal("100.00"));
+
+        assertEquals(new BigDecimal("51.14"), puntuacion);
+        assertEquals("Deficiente", Indicadores.calificacionPuntuacion(puntuacion));
+    }
+
+    @Test
+    void calificacionDeLaPuntuacionSegunLosCortes() {
+        assertEquals("Bueno", Indicadores.calificacionPuntuacion(new BigDecimal("80.00")));
+        assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("79.99")));
+        assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("60.00")));
+        assertEquals("Deficiente", Indicadores.calificacionPuntuacion(new BigDecimal("59.99")));
+    }
 }

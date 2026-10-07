@@ -30,6 +30,33 @@ namespace Sme.Models
         public string fechaModificacion;
     }
 
+    // Duplicar un proyecto: POST /proyectos/{id}/duplicar. El endpoint no lee
+    // body: se manda "{}" solo porque ApiClient.Post siempre serializa uno.
+    [Serializable]
+    public class DuplicarProyectoRequest
+    {
+    }
+
+    [Serializable]
+    public class DuplicarProyectoResponse
+    {
+        public long proyectoId;
+        public string nombre;
+    }
+
+    // Borrar un proyecto: DELETE /proyectos/{id}. Mismo caso que el anterior,
+    // sin body.
+    [Serializable]
+    public class EliminarProyectoRequest
+    {
+    }
+
+    [Serializable]
+    public class EliminarProyectoResponse
+    {
+        public bool eliminado;
+    }
+
     // Abrir un proyecto guardado: GET /proyectos/{id}.
     [Serializable]
     public class ProyectoDetalleResponse
