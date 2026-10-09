@@ -51,10 +51,6 @@ namespace Sme.Grid
         // x5 entran 24 tramos; a x20, 6.
         private const float MaximoMinutosRecorrido = 30f;
 
-        // Las piezas usan sortingOrder 1 (PiezaView.Awake): los autos en
-        // camino van por encima.
-        private const int OrdenCapaAutos = 2;
-
         // Tono suave sobre la plaza mientras su auto viene en camino.
         private static readonly Color ColorReservada = new Color(1f, 0.8f, 0.25f, 0.35f);
 
@@ -591,25 +587,26 @@ namespace Sme.Grid
 
         // --- Creación de objetos ---
 
-        // Fuera del GridLayoutGroup (ignoreLayout), estirada sobre el piso,
-        // con Canvas propio para dibujarse encima de las piezas sin tocar el
-        // orden de hermanos de las celdas (mismo motivo que PiezaView.Awake).
-        // Sin GraphicRaycaster: no recibe clics.
+        // Fuera del GridLayoutGroup (ignoreLayout), estirada sobre el piso.
+        // El Canvas que la dibuja encima de las piezas lo crea
+        // CapaAutosReproduccion (ver ahí por qué). Sin GraphicRaycaster: no
+        // recibe clics.
         private static RectTransform CrearCapaAutos(int piso)
         {
             var capa = new GameObject($"CapaAutos_Piso{piso}", typeof(RectTransform), typeof(LayoutElement));
             capa.transform.SetParent(GrillaGenerador.ContenedorDePiso(piso), false);
             capa.GetComponent<LayoutElement>().ignoreLayout = true;
 
+            // Se agrega recién colgada del piso: su Awake crea el Canvas y,
+            // si corriera con la capa todavía sin padre, sería un Canvas raíz
+            // y Unity ignora el overrideSorting.
+            capa.AddComponent<CapaAutosReproduccion>();
+
             RectTransform rect = capa.GetComponent<RectTransform>();
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-
-            Canvas canvas = capa.AddComponent<Canvas>();
-            canvas.overrideSorting = true;
-            canvas.sortingOrder = OrdenCapaAutos;
 
             return rect;
         }
