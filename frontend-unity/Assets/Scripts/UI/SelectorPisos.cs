@@ -13,7 +13,8 @@ namespace Sme.UI
     // el Inspector) que los acomode.
     //
     // Planta baja no se puede eliminar (ahí van la Entrada y la Salida), así
-    // que el botón de eliminar se oculta mientras se mira planta baja.
+    // que el botón de eliminar se oculta mientras se mira planta baja. También
+    // se oculta con la grilla en solo lectura (GrillaGenerador.SoloLectura).
     public class SelectorPisos : MonoBehaviour
     {
         private const float AnchoBoton = 110f;
@@ -69,7 +70,11 @@ namespace Sme.UI
             // contenedor no corta la suscripción a AlCambiarPisos (se hizo en
             // Awake), así que si vuelve a haber más de un piso reaparece.
             contenedorBotones.gameObject.SetActive(GrillaGenerador.CantidadPisos > 1);
-            botonEliminarPiso.gameObject.SetActive(GrillaGenerador.PisoActual != 0);
+
+            // Mientras se reproduce la simulación (Animación) se puede
+            // cambiar de piso pero no eliminarlo.
+            bool puedeEliminar = !GrillaGenerador.SoloLectura && GrillaGenerador.PisoActual != 0;
+            botonEliminarPiso.gameObject.SetActive(puedeEliminar);
         }
 
         private void CrearBotonPiso(int piso)

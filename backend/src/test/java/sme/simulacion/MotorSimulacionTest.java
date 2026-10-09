@@ -9,8 +9,10 @@ import sme.entity.TipoPieza;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 // Tests del motor sin Spring ni base de datos: la grilla se arma a mano con
@@ -369,5 +371,213 @@ class MotorSimulacionTest {
         assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("79.99")));
         assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("60.00")));
         assertEquals("Deficiente", Indicadores.calificacionPuntuacion(new BigDecimal("59.99")));
+    }
+
+    // --- Eventos para la reproducción animada (animacion/plan.md, etapa 1) ---
+
+    // 10 horas a 30/h con fluctuaciones y solo 3 plazas: hay rechazos, plazas
+    // que se liberan y se vuelven a asignar, y permanencias distintas.
+    private static ResultadoMotor simulacionConRechazos() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 4, 6));
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+        return motor.ejecutar(GeneradorDemanda.conFluctuaciones(30, 120, 600), 600);
+    }
+
+    @Test
+    void hayUnEventoPorVehiculoLlegado() {
+        ResultadoMotor resultado = simulacionConRechazos();
+
+        assertEquals(resultado.vehiculosLlegados(), resultado.eventos().size());
+    }
+
+    @Test
+    void losEventosSinPlazaSonLosRechazados() {
+        ResultadoMotor resultado = simulacionConRechazos();
+
+        int sinPlaza = 0;
+        for (EventoVehiculo evento : resultado.eventos()) {
+            if (evento.indicePlaza() == EventoVehiculo.SIN_PLAZA) {
+                sinPlaza++;
+                // Un rechazado no se queda.
+                assertEquals(evento.minutoLlegada(), evento.minutoSalida());
+            }
+        }
+
+        assertTrue(resultado.vehiculosRechazados() > 0, "el caso tiene que tener rechazos");
+        assertEquals(resultado.vehiculosRechazados(), sinPlaza);
+    }
+
+    @Test
+    void laOcupacionReconstruidaDesdeLosEventosCoincideConLaCurva() {
+        ResultadoMotor resultado = simulacionConRechazos();
+
+        // Un vehículo con plaza la ocupa en los minutos m con
+        // minutoLlegada <= m < minutoSalida (contratos/api-contract.md).
+        for (PuntoCurva punto : resultado.curva()) {
+            int minuto = punto.minuto();
+            int estacionados = 0;
+            for (EventoVehiculo evento : resultado.eventos()) {
+                boolean tienePlaza = evento.indicePlaza() != EventoVehiculo.SIN_PLAZA;
+                if (tienePlaza && evento.minutoLlegada() <= minuto && minuto < evento.minutoSalida()) {
+                    estacionados++;
+                }
+            }
+            assertEquals(punto.cantidadOcupadas(), estacionados, "minuto " + minuto);
+        }
+    }
+
+    @Test
+    void cadaEventoRegistraLaPlazaQueAsignoElMotor() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 4));
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+
+        // Mismo caso que conTreintaPorHoraLlegaUnoCadaDosMinutos: llegadas en
+        // 1, 3, 5, 7 y 9, permanencia 45, 2 plazas.
+        ResultadoMotor resultado = motor.ejecutar(GeneradorDemanda.sinFluctuaciones(30, 45, 10), 10);
+
+        assertEquals(List.of(
+                new EventoVehiculo(1, 46, 0),
+                new EventoVehiculo(3, 48, 1),
+                new EventoVehiculo(5, 5, EventoVehiculo.SIN_PLAZA),
+                new EventoVehiculo(7, 7, EventoVehiculo.SIN_PLAZA),
+                new EventoVehiculo(9, 9, EventoVehiculo.SIN_PLAZA)), resultado.eventos());
+    }
+
+    // --- Caminos para la reproducción animada (animacion/plan.md, etapa 2) ---
+
+    // Mismo diseño que llegaAUnaPlazaDelPisoDeArribaPorLaRampa: se sube por
+    // la rampa de la columna 2, la plaza está en el piso 1 y se baja por la
+    // rampa de la columna 5 hasta la Salida.
+    private static List<Pieza> disenoConPlazaArriba() {
+        List<Pieza> piezas = new ArrayList<>();
+        piezas.add(circulacion(0, 7, 0, TipoPieza.ENTRADA, Direccion.ESTE));
+        piezas.add(circulacion(0, 7, 1, TipoPieza.CALLE, Direccion.ESTE));
+        piezas.add(rampa(0, 7, 2, Direccion.ESTE, SentidoVertical.SUBE));
+        piezas.add(rampa(1, 7, 2, Direccion.ESTE, SentidoVertical.SUBE));
+        piezas.add(circulacion(1, 7, 3, TipoPieza.CALLE, Direccion.ESTE));
+        piezas.add(circulacion(1, 7, 4, TipoPieza.CALLE, Direccion.ESTE));
+        piezas.add(rampa(1, 7, 5, Direccion.ESTE, SentidoVertical.BAJA));
+        piezas.add(rampa(0, 7, 5, Direccion.ESTE, SentidoVertical.BAJA));
+        piezas.add(circulacion(0, 7, 6, TipoPieza.SALIDA, Direccion.ESTE));
+        piezas.add(plaza(1, 6, 3, Direccion.SUR));
+        return piezas;
+    }
+
+    // Cada celda del camino es sucesora de la anterior en el grafo.
+    private static void assertCadaPasoEsUnaArista(GrafoCirculacion grafo, List<CeldaSimulacion> camino) {
+        for (int i = 1; i < camino.size(); i++) {
+            CeldaSimulacion anterior = camino.get(i - 1);
+            CeldaSimulacion actual = camino.get(i);
+            assertTrue(grafo.sucesores(anterior).contains(actual),
+                    "paso " + i + ": (" + anterior.getPiso() + "," + anterior.getFila() + "," + anterior.getColumna()
+                            + ") → (" + actual.getPiso() + "," + actual.getFila() + "," + actual.getColumna() + ")");
+        }
+    }
+
+    @Test
+    void elLargoDelCaminoDeEntradaEsLaDistanciaQueUsaElMotor() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 6, 10));
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+        GrafoCirculacion grafo = new GrafoCirculacion(grilla);
+        CeldaSimulacion entrada = grilla.getEntradas().get(0);
+        Map<CeldaSimulacion, Integer> distancias = grafo.distanciasDesde(entrada);
+
+        List<CaminosDePlaza> caminos = motor.calcularCaminosDePlazas();
+
+        assertEquals(motor.getPlazasPorCercania().size(), caminos.size());
+        for (int i = 0; i < caminos.size(); i++) {
+            CaminosDePlaza caminosDePlaza = caminos.get(i);
+            CeldaSimulacion plaza = caminosDePlaza.plaza();
+            CeldaSimulacion boca = grilla.obtenerVecina(plaza, plaza.getCaraAcceso());
+            List<CeldaSimulacion> caminoEntrada = caminosDePlaza.caminoEntrada();
+
+            assertSame(motor.getPlazasPorCercania().get(i), plaza);
+            assertSame(entrada, caminoEntrada.get(0));
+            assertSame(boca, caminoEntrada.get(caminoEntrada.size() - 1));
+            assertEquals(distancias.get(boca).intValue(), caminoEntrada.size() - 1);
+        }
+    }
+
+    @Test
+    void cadaPasoDeLosCaminosEsUnaAristaDelGrafo() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 6, 10));
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+        GrafoCirculacion grafo = new GrafoCirculacion(grilla);
+        CeldaSimulacion salida = grilla.getSalidas().get(0);
+
+        for (CaminosDePlaza caminosDePlaza : motor.calcularCaminosDePlazas()) {
+            List<CeldaSimulacion> caminoEntrada = caminosDePlaza.caminoEntrada();
+            List<CeldaSimulacion> caminoSalida = caminosDePlaza.caminoSalida();
+
+            assertCadaPasoEsUnaArista(grafo, caminoEntrada);
+            assertCadaPasoEsUnaArista(grafo, caminoSalida);
+            // El camino de salida arranca en la boca, donde terminó el de
+            // entrada, y termina en la Salida.
+            assertSame(caminoEntrada.get(caminoEntrada.size() - 1), caminoSalida.get(0));
+            assertSame(salida, caminoSalida.get(caminoSalida.size() - 1));
+        }
+    }
+
+    @Test
+    void conRampaElCaminoCambiaDePisoPorElParDeRampa() {
+        GrillaSimulacion grilla = new GrillaSimulacion(2, FILAS, COLUMNAS, disenoConPlazaArriba());
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+
+        List<CaminosDePlaza> caminos = motor.calcularCaminosDePlazas();
+
+        assertEquals(1, caminos.size());
+        assertEquals(List.of(
+                grilla.obtenerCelda(0, 7, 0),
+                grilla.obtenerCelda(0, 7, 1),
+                grilla.obtenerCelda(0, 7, 2),
+                grilla.obtenerCelda(1, 7, 2),
+                grilla.obtenerCelda(1, 7, 3)), caminos.get(0).caminoEntrada());
+        assertEquals(List.of(
+                grilla.obtenerCelda(1, 7, 3),
+                grilla.obtenerCelda(1, 7, 4),
+                grilla.obtenerCelda(1, 7, 5),
+                grilla.obtenerCelda(0, 7, 5),
+                grilla.obtenerCelda(0, 7, 6)), caminos.get(0).caminoSalida());
+    }
+
+    @Test
+    void elRecorridoDeLosRechazadosPasaPorLaPlazaMasLejana() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 6, 10));
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+
+        int indice = motor.indicePlazaRecorridoRechazados();
+
+        assertEquals(2, indice);
+        assertEquals(10, motor.calcularCaminosDePlazas().get(indice).plaza().getColumna());
+    }
+
+    @Test
+    void sinPlazasUsablesNoHayRecorridoDeRechazados() {
+        // Mismo diseño que plazaDesdeLaQueNoSePuedeSalirNoSeUsa.
+        List<Pieza> piezas = new ArrayList<>();
+        piezas.add(circulacion(0, 7, 0, TipoPieza.ENTRADA, Direccion.ESTE));
+        piezas.add(circulacion(0, 7, 1, TipoPieza.CALLE, Direccion.ESTE));
+        piezas.add(rampa(0, 7, 2, Direccion.ESTE, SentidoVertical.SUBE));
+        piezas.add(rampa(1, 7, 2, Direccion.ESTE, SentidoVertical.SUBE));
+        piezas.add(circulacion(1, 7, 3, TipoPieza.CALLE, Direccion.ESTE));
+        piezas.add(circulacion(1, 7, 4, TipoPieza.CALLE, Direccion.SUR));
+        piezas.add(circulacion(0, 8, 0, TipoPieza.SALIDA, Direccion.OESTE));
+        piezas.add(plaza(1, 6, 3, Direccion.SUR));
+        GrillaSimulacion grilla = new GrillaSimulacion(2, FILAS, COLUMNAS, piezas);
+        MotorSimulacion motor = new MotorSimulacion(grilla);
+
+        assertEquals(EventoVehiculo.SIN_PLAZA, motor.indicePlazaRecorridoRechazados());
+        assertTrue(motor.calcularCaminosDePlazas().isEmpty());
+    }
+
+    @Test
+    void caminoHastaUnDestinoInalcanzableEsVacio() {
+        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto());
+        GrafoCirculacion grafo = new GrafoCirculacion(grilla);
+
+        // Desde la Salida no se puede volver a la Entrada.
+        List<CeldaSimulacion> camino = grafo.caminoHasta(grilla.getSalidas().get(0), grilla.getEntradas().get(0));
+
+        assertTrue(camino.isEmpty());
     }
 }

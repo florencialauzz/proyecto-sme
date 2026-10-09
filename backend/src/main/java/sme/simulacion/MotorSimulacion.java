@@ -79,6 +79,37 @@ public class MotorSimulacion {
         return plazasPorCercania;
     }
 
+    // --- Caminos para la reproducción animada (animacion/reglas.md) ---
+
+    // Los caminos de cada plaza usable, en el mismo orden que
+    // plazasPorCercania: la posición en esta lista es el indicePlaza de
+    // EventoVehiculo. Como plazasPorCercania solo tiene plazas con la boca
+    // alcanzable desde la Entrada y con salida, ningún camino queda vacío.
+    public List<CaminosDePlaza> calcularCaminosDePlazas() {
+        GrafoCirculacion grafo = new GrafoCirculacion(grilla);
+        CeldaSimulacion entrada = grilla.getEntradas().get(0);
+
+        List<CaminosDePlaza> caminos = new ArrayList<>();
+        for (CeldaSimulacion plaza : plazasPorCercania) {
+            CeldaSimulacion boca = grilla.obtenerVecina(plaza, plaza.getCaraAcceso());
+            List<CeldaSimulacion> caminoEntrada = grafo.caminoHasta(entrada, boca);
+            List<CeldaSimulacion> caminoSalida = grafo.caminoHastaLaMasCercana(boca, grilla.getSalidas());
+            caminos.add(new CaminosDePlaza(plaza, caminoEntrada, caminoSalida));
+        }
+        return caminos;
+    }
+
+    // Todos los rechazados hacen el mismo recorrido: hasta la boca de la
+    // plaza usable más lejana y de ahí a la Salida, que son los dos caminos
+    // de esa plaza (la última de plazasPorCercania). SIN_PLAZA si no hay
+    // ninguna plaza usable.
+    public int indicePlazaRecorridoRechazados() {
+        if (plazasPorCercania.isEmpty()) {
+            return EventoVehiculo.SIN_PLAZA;
+        }
+        return plazasPorCercania.size() - 1;
+    }
+
     private boolean puedeLlegarAUnaSalida(GrafoCirculacion grafo, CeldaSimulacion desde) {
         Map<CeldaSimulacion, Integer> alcanzablesDesdeAhi = grafo.distanciasDesde(desde);
         for (CeldaSimulacion salida : grilla.getSalidas()) {
@@ -96,6 +127,10 @@ public class MotorSimulacion {
     //
     // La curva registra, para cada minuto, las plazas ocupadas después de
     // procesar las salidas y las llegadas de ese minuto.
+    //
+    // Además se registra un EventoVehiculo por cada llegada, con la misma
+    // decisión que se acaba de tomar, para la reproducción animada
+    // (animacion/reglas.md). Registrarlo no cambia nada de lo que se cuenta.
     public ResultadoMotor ejecutar(List<Vehiculo> vehiculos, int duracionMinutos) {
         // Minuto en que se libera cada plaza de plazasPorCercania, o LIBRE.
         int[] minutoLiberacion = new int[plazasPorCercania.size()];
@@ -104,6 +139,7 @@ public class MotorSimulacion {
         }
 
         List<PuntoCurva> curva = new ArrayList<>();
+        List<EventoVehiculo> eventos = new ArrayList<>();
         int siguienteVehiculo = 0;
         int vehiculosLlegados = 0;
         int vehiculosRechazados = 0;
@@ -126,16 +162,19 @@ public class MotorSimulacion {
                 int plazaLibre = primeraPlazaLibre(minutoLiberacion);
                 if (plazaLibre == SIN_PLAZA_LIBRE) {
                     vehiculosRechazados++;
+                    eventos.add(new EventoVehiculo(minuto, minuto, EventoVehiculo.SIN_PLAZA));
                 } else {
                     minutoLiberacion[plazaLibre] = minuto + vehiculo.tiempoPermanencia();
                     ocupadas++;
+                    eventos.add(new EventoVehiculo(minuto, minutoLiberacion[plazaLibre], plazaLibre));
                 }
             }
 
             curva.add(new PuntoCurva(minuto, ocupadas));
         }
 
-        return new ResultadoMotor(curva, vehiculosLlegados, vehiculosRechazados, plazasPorCercania.size());
+        return new ResultadoMotor(curva, vehiculosLlegados, vehiculosRechazados, plazasPorCercania.size(),
+                eventos);
     }
 
     // El índice de la plaza libre más cercana a la entrada, o SIN_PLAZA_LIBRE

@@ -12,7 +12,7 @@ namespace Sme.UI
 {
     // Controlador de la escena Editor: mensajes compartidos (RF-13, ver
     // MensajesEditor), guardar proyecto (RF-21) y ejecutar la simulación
-    // (RF-26).
+    // (RF-26), que deja la escena en modo reproducción (ModoReproduccion).
     public class EditorScreen : MonoBehaviour
     {
         private const float DuracionMensajeSegundos = 2.5f;
@@ -32,7 +32,10 @@ namespace Sme.UI
 
         [SerializeField] private UnityEvent alSalir;
         [SerializeField] private UnityEvent alIrAConfiguracion;
-        [SerializeField] private UnityEvent alIrAResultados;
+
+        // Animación: después de simular se entra a la reproducción, que es
+        // la que lleva a Resultados.
+        [SerializeField] private ModoReproduccion modoReproduccion;
 
         private Coroutine ocultamientoEnCurso;
 
@@ -172,21 +175,43 @@ namespace Sme.UI
                 alFallar: TerminarSimulacionSinResultado);
         }
 
+        // simulacionEnCurso queda en true al salir bien: el Editor pasa a la
+        // reproducción y el botón de simular ya no se vuelve a mostrar.
         private void EjecutarSimulacion()
         {
-            ApiClient.Post<EjecutarSimulacionRequest, EjecutarSimulacionResponse>(
+            ApiClient.Post<EjecutarSimulacionRequest, EjecutarSimulacionConReproduccionResponse>(
                 $"/proyectos/{ProyectoManager.ProyectoId}/simulacion/ejecutar",
                 new EjecutarSimulacionRequest(),
-                alTenerExito: resultado =>
+                alTenerExito: respuesta =>
                 {
-                    ProyectoManager.GuardarSimulacion(resultado, yaGuardada: false, abiertoDesdeInicio: false);
-                    alIrAResultados?.Invoke();
+                    EjecutarSimulacionResponse indicadores = SoloIndicadores(respuesta);
+                    ProyectoManager.GuardarSimulacion(indicadores, yaGuardada: false, abiertoDesdeInicio: false);
+                    modoReproduccion.Entrar(indicadores, respuesta.reproduccion);
                 },
                 alFallar: (mensaje, codigo) =>
                 {
                     MostrarError(mensaje);
                     TerminarSimulacionSinResultado();
                 });
+        }
+
+        // Los indicadores de la respuesta, sin reproduccion: es lo que
+        // muestra Resultados y lo que se reenvía a /guardar, que no lleva la
+        // reproducción (contratos/api-contract.md). Copia campo por campo
+        // porque JsonUtility no deja omitir un campo al serializar.
+        private static EjecutarSimulacionResponse SoloIndicadores(EjecutarSimulacionConReproduccionResponse respuesta)
+        {
+            return new EjecutarSimulacionResponse
+            {
+                eficienciaEspacial = respuesta.eficienciaEspacial,
+                calificacionEficiencia = respuesta.calificacionEficiencia,
+                curvaOcupacion = respuesta.curvaOcupacion,
+                demandaSatisfecha = respuesta.demandaSatisfecha,
+                vehiculosRechazados = respuesta.vehiculosRechazados,
+                periodosSaturacion = respuesta.periodosSaturacion,
+                puntuacionGeneral = respuesta.puntuacionGeneral,
+                calificacionTexto = respuesta.calificacionTexto
+            };
         }
 
         private void TerminarSimulacionSinResultado()

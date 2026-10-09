@@ -47,6 +47,10 @@ namespace Sme.Grid
         public static int PisoActual { get; private set; }
         public static int CantidadPisos => GrillaModelo.CantidadPisos;
 
+        // Animación: mientras se reproduce la simulación la grilla se mira
+        // pero no se edita (ver ActivarSoloLectura).
+        public static bool SoloLectura { get; private set; }
+
         // SelectorPisos se suscribe para rearmar sus botones cada vez que
         // cambia el piso visible o la cantidad de pisos.
         public static event Action AlCambiarPisos;
@@ -73,6 +77,7 @@ namespace Sme.Grid
             // anterior. Se vacían sin tocarlos: no hay nada que destruir.
             contenedoresPorPiso.Clear();
             celdas.Clear();
+            SoloLectura = false;
 
             instancia = this;
             canvasRaiz = contenedorGrilla.GetComponentInParent<Canvas>().rootCanvas.transform;
@@ -396,6 +401,42 @@ namespace Sme.Grid
                 esCrucePeatonal = original.esCrucePeatonal,
                 sentidoVertical = original.sentidoVertical
             };
+        }
+
+        // --- Solo lectura (Animación, animacion/reglas.md) ---
+
+        // La grilla queda como está, sin arrastrar ni menú contextual, para
+        // reproducir la simulación encima. No hay vuelta atrás: para editar
+        // de nuevo se vuelve a cargar la escena (desde Resultados, Volver).
+        //
+        // Se apagan los raycasts de cada pieza y no los del contenedor del
+        // piso: cada pieza tiene su propio Canvas con overrideSorting (ver
+        // PiezaView.Awake), y Unity deja de mirar los CanvasGroup de más
+        // arriba al llegar a un Canvas así, así que un CanvasGroup en el
+        // contenedor no las alcanzaría. includeInactive: también las de los
+        // pisos que no se están mirando.
+        public static void ActivarSoloLectura()
+        {
+            SoloLectura = true;
+
+            foreach (CeldaView celda in celdas.Values)
+            {
+                foreach (IPiezaColocada pieza in celda.GetComponentsInChildren<IPiezaColocada>(true))
+                {
+                    CanvasGroup canvasGroupPieza = ((Component)pieza).GetComponent<CanvasGroup>();
+                    canvasGroupPieza.blocksRaycasts = false;
+                }
+            }
+
+            // SelectorPisos se rearma para ocultar "Eliminar piso".
+            AlCambiarPisos?.Invoke();
+        }
+
+        // AutosReproduccion cuelga de cada piso su capa de autos en
+        // movimiento, así se oculta junto con el piso.
+        public static RectTransform ContenedorDePiso(int piso)
+        {
+            return contenedoresPorPiso[piso];
         }
 
         // Para mensajes y botones: el piso 0 es la planta baja.

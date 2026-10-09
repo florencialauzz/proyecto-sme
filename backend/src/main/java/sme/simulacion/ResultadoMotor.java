@@ -11,6 +11,17 @@ import java.util.List;
 // son todas las de la grilla, pero la saturación se mide contra estas — si
 // una plaza no se puede usar, el estacionamiento se llena sin que esa plaza
 // llegue a ocuparse nunca.
+//
+// eventos: uno por vehículo llegado, en orden de llegada, para la
+// reproducción animada (animacion/reglas.md). No intervienen en ningún
+// indicador.
 public record ResultadoMotor(List<PuntoCurva> curva, int vehiculosLlegados, int vehiculosRechazados,
-                             int plazasUsables) {
+                             int plazasUsables, List<EventoVehiculo> eventos) {
+
+    // Para los tests de Indicadores, que arman el resultado a mano sin
+    // simular y no necesitan eventos.
+    public ResultadoMotor(List<PuntoCurva> curva, int vehiculosLlegados, int vehiculosRechazados,
+                          int plazasUsables) {
+        this(curva, vehiculosLlegados, vehiculosRechazados, plazasUsables, List.of());
+    }
 }

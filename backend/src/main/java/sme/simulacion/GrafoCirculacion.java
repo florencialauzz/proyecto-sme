@@ -6,6 +6,7 @@ import sme.entity.TipoPieza;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,5 +182,58 @@ public class GrafoCirculacion {
         }
 
         return distancias;
+    }
+
+    // Las celdas que recorre el vehículo desde el origen (primera) hasta el
+    // destino (última), por uno de los caminos más cortos. Lista vacía si el
+    // destino no es alcanzable.
+    public List<CeldaSimulacion> caminoHasta(CeldaSimulacion origen, CeldaSimulacion destino) {
+        return caminoHastaLaMasCercana(origen, List.of(destino));
+    }
+
+    // Igual que caminoHasta, pero hasta el más cercano de varios destinos
+    // (la Salida más cercana a la boca de una plaza).
+    //
+    // Es el mismo recorrido en anchura que distanciasDesde, guardando además
+    // de qué celda se llegó a cada una: así el largo del camino es la
+    // distancia que usa el motor para ordenar las plazas, y el camino que se
+    // ve en la reproducción es el que justificó esa distancia
+    // (animacion/reglas.md). Los sucesores se recorren siempre en el mismo
+    // orden, así que entre dos caminos igual de cortos sale siempre el mismo.
+    public List<CeldaSimulacion> caminoHastaLaMasCercana(CeldaSimulacion origen, List<CeldaSimulacion> destinos) {
+        Map<CeldaSimulacion, CeldaSimulacion> predecesores = new HashMap<>();
+        Queue<CeldaSimulacion> pendientes = new ArrayDeque<>();
+
+        predecesores.put(origen, null);
+        pendientes.add(origen);
+
+        CeldaSimulacion destinoEncontrado = null;
+        while (!pendientes.isEmpty()) {
+            CeldaSimulacion actual = pendientes.poll();
+            if (destinos.contains(actual)) {
+                destinoEncontrado = actual;
+                break;
+            }
+
+            for (CeldaSimulacion siguiente : sucesores(actual)) {
+                if (predecesores.containsKey(siguiente)) continue;
+
+                predecesores.put(siguiente, actual);
+                pendientes.add(siguiente);
+            }
+        }
+
+        List<CeldaSimulacion> camino = new ArrayList<>();
+        if (destinoEncontrado == null) return camino;
+
+        // Se arma de atrás para adelante siguiendo los predecesores, y se da
+        // vuelta al final.
+        CeldaSimulacion celda = destinoEncontrado;
+        while (celda != null) {
+            camino.add(celda);
+            celda = predecesores.get(celda);
+        }
+        Collections.reverse(camino);
+        return camino;
     }
 }

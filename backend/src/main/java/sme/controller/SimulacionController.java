@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import sme.dto.EjecutarSimulacionResponse;
 import sme.dto.GuardarSimulacionRequest;
 import sme.dto.GuardarSimulacionResponse;
+import sme.dto.ResultadoSimulacionResponse;
 import sme.service.SimulacionService;
 
 @RestController
@@ -41,8 +42,8 @@ public class SimulacionController {
 
     // RF-24 (reabrir resultados guardados) y RF-25 (comparar)
     @GetMapping
-    public ResponseEntity<EjecutarSimulacionResponse> obtenerGuardado(@PathVariable Long id,
-                                                                      Authentication authentication) {
+    public ResponseEntity<ResultadoSimulacionResponse> obtenerGuardado(@PathVariable Long id,
+                                                                       Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(simulacionService.obtenerGuardado(usuarioId, id));
     }

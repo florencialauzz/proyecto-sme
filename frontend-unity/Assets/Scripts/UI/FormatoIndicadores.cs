@@ -95,7 +95,9 @@ namespace Sme.UI
         }
 
         // Las horas llegan como "HH:mm" o "HH:mm:ss" (mismo criterio que GraficoCurva).
-        private static int MinutoDelDia(string hora)
+        // Públicas porque el reloj de la reproducción (ModoReproduccion) muestra
+        // la hora simulada con el mismo formato.
+        public static int MinutoDelDia(string hora)
         {
             if (string.IsNullOrEmpty(hora)) return 0;
 
@@ -105,7 +107,7 @@ namespace Sme.UI
             return horas * MinutosPorHora + minutos;
         }
 
-        private static string HoraDelDia(int minutoDelDia)
+        public static string HoraDelDia(int minutoDelDia)
         {
             int horas = minutoDelDia / MinutosPorHora % 24;
             int minutos = minutoDelDia % MinutosPorHora;
