@@ -145,7 +145,7 @@ namespace Sme.Grid
                 opciones.Add(new MenuContextual.Opcion(texto, AlternarCrucePeatonal));
             }
 
-            opciones.Add(new MenuContextual.Opcion("Eliminar", Eliminar));
+            opciones.Add(new MenuContextual.Opcion("Eliminar", Eliminar, esDestructiva: true));
 
             MenuContextual.Mostrar(this, eventData.position, opciones.ToArray());
         }

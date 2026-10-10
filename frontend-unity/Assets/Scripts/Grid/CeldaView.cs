@@ -1,3 +1,4 @@
+using Sme.UI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -29,7 +30,7 @@ namespace Sme.Grid
 
         // Marca roja de RF-20 (ver MostrarAdvertencia). Se crea recién la
         // primera vez que hace falta.
-        private static readonly Color ColorAdvertencia = new Color(0.9f, 0.1f, 0.1f, 0.4f);
+        private static readonly Color ColorAdvertencia = new Color(Tema.Peligro.r, Tema.Peligro.g, Tema.Peligro.b, 0.42f);
         private GameObject marcaAdvertencia;
 
         public void Ocupar(TipoPieza tipo, CaraAcceso? direccion)

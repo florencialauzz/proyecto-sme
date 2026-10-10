@@ -15,6 +15,8 @@ import sme.dto.PiezaRequest;
 import sme.dto.PiezaResponse;
 import sme.dto.ProyectoDetalleResponse;
 import sme.dto.ProyectoResumenResponse;
+import sme.dto.RenombrarProyectoRequest;
+import sme.dto.RenombrarProyectoResponse;
 import sme.entity.Direccion;
 import sme.entity.Pieza;
 import sme.entity.Proyecto;
@@ -166,6 +168,26 @@ public class ProyectoService {
             numero++;
         }
         return nombre;
+    }
+
+    // Cambiar el nombre de un proyecto desde Inicio (clic derecho, sin RF
+    // propio todavía, ver pendientes.md). Mismas reglas que el nombre al
+    // crearlo (RF-07): no vacío y no repetido entre los proyectos del
+    // usuario. Volver a poner el mismo nombre que ya tenía no es repetido.
+    public RenombrarProyectoResponse renombrar(Long usuarioId, Long proyectoId, RenombrarProyectoRequest request) {
+        Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
+
+        if (request.nombre() == null || request.nombre().isBlank()) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "NOMBRE_VACIO", "El nombre del proyecto no puede estar vacío");
+        }
+        boolean esElMismo = request.nombre().equals(proyecto.getNombre());
+        if (!esElMismo && proyectoRepository.existsByUsuarioIdAndNombre(usuarioId, request.nombre())) {
+            throw new NegocioException(HttpStatus.CONFLICT, "PROYECTO_DUPLICADO", "Ya tiene un proyecto con ese nombre");
+        }
+
+        proyecto.setNombre(request.nombre());
+        proyectoRepository.save(proyecto);
+        return new RenombrarProyectoResponse(proyecto.getId(), proyecto.getNombre());
     }
 
     // Borrar un proyecto desde Inicio (sin RF propio todavía, ver

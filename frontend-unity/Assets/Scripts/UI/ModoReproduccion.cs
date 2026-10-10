@@ -157,7 +157,7 @@ namespace Sme.UI
                 return;
             }
 
-            textoPlayPausa.text = reproduciendo ? "Pausa" : "Reproducir";
+            textoPlayPausa.text = reproduciendo ? "‖  Pausa" : "▶  Reproducir";
             botonPlayPausa.interactable = true;
         }
 
@@ -178,9 +178,18 @@ namespace Sme.UI
                     MinutosSimuladosPorSegundoAx1 * velocidad);
             }
 
-            botonVelocidadX1.interactable = velocidad != 1;
-            botonVelocidadX5.interactable = velocidad != 5;
-            botonVelocidadX20.interactable = velocidad != 20;
+            MarcarVelocidad(botonVelocidadX1, velocidad == 1);
+            MarcarVelocidad(botonVelocidadX5, velocidad == 5);
+            MarcarVelocidad(botonVelocidadX20, velocidad == 20);
+        }
+
+        // La velocidad elegida va rellena con el color primario. Su color de
+        // deshabilitado es opaco (escena), así no se ve apagada.
+        private static void MarcarVelocidad(Button boton, bool elegida)
+        {
+            boton.interactable = !elegida;
+            boton.image.color = elegida ? Tema.Primario : Tema.Superficie;
+            boton.GetComponentInChildren<TMP_Text>().color = elegida ? Tema.TextoSobreColor : Tema.Texto;
         }
 
         // --- Lo que se muestra en cada minuto ---

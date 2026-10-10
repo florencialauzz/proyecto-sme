@@ -18,13 +18,16 @@ namespace Sme.UI
         private const float DuracionMensajeSegundos = 2.5f;
 
         // Los errores (colocación rechazada, guardado fallido) se muestran en
-        // rojo, en negrita, un poco más grandes y más tiempo que los avisos
-        // normales ("Proyecto guardado."), para que no pasen desapercibidos.
+        // un aviso rojo y más tiempo que los avisos normales ("Proyecto
+        // guardado.", en verde), para que no pasen desapercibidos.
         private const float DuracionErrorSegundos = 4f;
-        private const float AumentoTamanioError = 4f;
-        private static readonly Color ColorError = new Color(0.95f, 0.25f, 0.25f, 1f);
 
+        // Aviso flotante abajo de la grilla: fondo de color, ícono y texto.
+        // Lo que se prende y apaga es el fondo, que contiene a los otros dos.
+        [SerializeField] private Image fondoMensaje;
+        [SerializeField] private TMP_Text iconoMensaje;
         [SerializeField] private TMP_Text textoMensaje;
+
         [SerializeField] private Button botonGuardar;
         [SerializeField] private Button botonSalir;
         [SerializeField] private Button botonConfiguracion;
@@ -32,6 +35,15 @@ namespace Sme.UI
 
         [SerializeField] private UnityEvent alSalir;
         [SerializeField] private UnityEvent alIrAConfiguracion;
+
+        // "¿Guardar los cambios?": se abre al ir a Inicio o a Configuración
+        // si el diseño cambió desde el último guardado (las dos pantallas
+        // vuelven a cargar el Editor desde lo guardado, así que lo que no se
+        // guardó se pierde).
+        [SerializeField] private GameObject panelCambiosSinGuardar;
+        [SerializeField] private Button botonGuardarYSalir;
+        [SerializeField] private Button botonSalirSinGuardar;
+        [SerializeField] private Button botonCancelarSalida;
 
         // Animación: después de simular se entra a la reproducción, que es
         // la que lleva a Resultados.
@@ -44,21 +56,21 @@ namespace Sme.UI
         // simulaciones seguidas con un doble clic.
         private bool simulacionEnCurso;
 
-        // Estilo del texto tal como está en la escena: es el de los avisos
-        // normales, y a él se vuelve después de mostrar un error.
-        private Color colorNormal;
-        private float tamanioNormal;
+        // A dónde se va después de responder "¿Guardar los cambios?".
+        private Action salidaPendiente;
 
         private void Awake()
         {
             MensajesEditor.Registrar(this);
-            colorNormal = textoMensaje.color;
-            tamanioNormal = textoMensaje.fontSize;
-            textoMensaje.gameObject.SetActive(false);
+            fondoMensaje.gameObject.SetActive(false);
             botonGuardar.onClick.AddListener(GuardarProyecto);
             botonSalir.onClick.AddListener(Salir);
             botonConfiguracion.onClick.AddListener(IrAConfiguracion);
             botonSimular.onClick.AddListener(Simular);
+            botonGuardarYSalir.onClick.AddListener(GuardarYSalir);
+            botonSalirSinGuardar.onClick.AddListener(SalirSinGuardar);
+            botonCancelarSalida.onClick.AddListener(CerrarCambiosSinGuardar);
+            panelCambiosSinGuardar.SetActive(false);
 
             // RF-20: el botón de simular solo se habilita con el diseño
             // válido. La primera validación corre en el LateUpdate de
@@ -75,24 +87,22 @@ namespace Sme.UI
 
         public void MostrarMensaje(string mensaje)
         {
-            textoMensaje.color = colorNormal;
-            textoMensaje.fontSize = tamanioNormal;
-            textoMensaje.fontStyle = FontStyles.Normal;
+            fondoMensaje.color = Tema.Exito;
+            iconoMensaje.text = "✓";
             Mostrar(mensaje, DuracionMensajeSegundos);
         }
 
         public void MostrarError(string mensaje)
         {
-            textoMensaje.color = ColorError;
-            textoMensaje.fontSize = tamanioNormal + AumentoTamanioError;
-            textoMensaje.fontStyle = FontStyles.Bold;
+            fondoMensaje.color = Tema.Peligro;
+            iconoMensaje.text = "!";
             Mostrar(mensaje, DuracionErrorSegundos);
         }
 
         private void Mostrar(string mensaje, float duracionSegundos)
         {
             textoMensaje.text = mensaje;
-            textoMensaje.gameObject.SetActive(true);
+            fondoMensaje.gameObject.SetActive(true);
 
             if (ocultamientoEnCurso != null)
             {
@@ -105,7 +115,7 @@ namespace Sme.UI
         private IEnumerator OcultarLuegoDe(float segundos)
         {
             yield return new WaitForSeconds(segundos);
-            textoMensaje.gameObject.SetActive(false);
+            fondoMensaje.gameObject.SetActive(false);
             ocultamientoEnCurso = null;
         }
 
@@ -138,6 +148,7 @@ namespace Sme.UI
                 {
                     botonGuardar.interactable = true;
                     ProyectoManager.GuardarGrilla(request.piezas, request.cantidadPisos);
+                    GrillaGenerador.MarcarDisenoGuardado();
                     alGuardar?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>
@@ -220,11 +231,11 @@ namespace Sme.UI
             ActualizarBotonSimular();
         }
 
-        // El botón no guarda solo: si hay cambios sin guardar, es el usuario
-        // quien decide si vuelve a Inicio de todos modos.
+        // El botón no guarda solo: si hay cambios sin guardar, pregunta
+        // (panelCambiosSinGuardar) y el usuario decide.
         private void Salir()
         {
-            alSalir?.Invoke();
+            SalirPreguntandoSiHayCambios(() => alSalir?.Invoke());
         }
 
         // RF-08 a RF-11: permite volver a la pantalla de Configuración para
@@ -232,8 +243,48 @@ namespace Sme.UI
         // el mismo proyecto ya modelado.
         private void IrAConfiguracion()
         {
-            ProyectoManager.MarcarConfiguracionAbiertaDesdeEditor();
-            alIrAConfiguracion?.Invoke();
+            SalirPreguntandoSiHayCambios(() =>
+            {
+                ProyectoManager.MarcarConfiguracionAbiertaDesdeEditor();
+                alIrAConfiguracion?.Invoke();
+            });
+        }
+
+        // --- Cambios sin guardar ---
+
+        // En la reproducción la grilla es de solo lectura y se guardó antes
+        // de simular: nunca hay cambios.
+        private void SalirPreguntandoSiHayCambios(Action salir)
+        {
+            if (!GrillaGenerador.HayCambiosSinGuardar())
+            {
+                salir();
+                return;
+            }
+
+            salidaPendiente = salir;
+            botonGuardarYSalir.interactable = true;
+            panelCambiosSinGuardar.SetActive(true);
+        }
+
+        // Si el guardado falla, el modal se cierra y el error se ve en el
+        // aviso del Editor; el usuario sigue en el Editor con sus cambios.
+        private void GuardarYSalir()
+        {
+            botonGuardarYSalir.interactable = false;
+            GuardarGrilla(
+                alGuardar: () => salidaPendiente(),
+                alFallar: CerrarCambiosSinGuardar);
+        }
+
+        private void SalirSinGuardar()
+        {
+            salidaPendiente();
+        }
+
+        private void CerrarCambiosSinGuardar()
+        {
+            panelCambiosSinGuardar.SetActive(false);
         }
     }
 }

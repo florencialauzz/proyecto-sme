@@ -14,7 +14,7 @@ namespace Sme.UI
         [SerializeField] private TMP_InputField campoNombreUsuario;
         [SerializeField] private TMP_InputField campoContrasena;
         [SerializeField] private Button botonIniciarSesion;
-        [SerializeField] private TMP_Text textoError;
+        [SerializeField] private AvisoError avisoError;
 
         [SerializeField] private UnityEvent alIniciarSesionConExito;
 
@@ -48,7 +48,7 @@ namespace Sme.UI
                 alTenerExito: respuesta =>
                 {
                     botonIniciarSesion.interactable = true;
-                    SesionManager.GuardarSesion(respuesta.usuarioId, respuesta.token);
+                    SesionManager.GuardarSesion(respuesta.usuarioId, respuesta.token, request.nombreUsuario);
                     alIniciarSesionConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>
@@ -62,14 +62,12 @@ namespace Sme.UI
 
         private void MostrarError(string mensaje)
         {
-            textoError.text = mensaje;
-            textoError.gameObject.SetActive(true);
+            avisoError.Mostrar(mensaje);
         }
 
         private void OcultarError()
         {
-            textoError.text = string.Empty;
-            textoError.gameObject.SetActive(false);
+            avisoError.Ocultar();
         }
     }
 }

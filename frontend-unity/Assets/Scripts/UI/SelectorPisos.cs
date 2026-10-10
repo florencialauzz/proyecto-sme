@@ -17,9 +17,8 @@ namespace Sme.UI
     // se oculta con la grilla en solo lectura (GrillaGenerador.SoloLectura).
     public class SelectorPisos : MonoBehaviour
     {
-        private const float AnchoBoton = 110f;
-        private const float AltoBoton = 40f;
-        private static readonly Color ColorPisoConAdvertencias = new Color(1f, 0.4f, 0.4f, 1f);
+        private const float AnchoBoton = 104f;
+        private const float AltoBoton = 36f;
 
         [SerializeField] private RectTransform contenedorBotones;
         [SerializeField] private Button botonEliminarPiso;
@@ -86,28 +85,35 @@ namespace Sme.UI
             layout.preferredWidth = AnchoBoton;
             layout.preferredHeight = AltoBoton;
 
-            boton.GetComponent<Image>().color = new Color(0.15f, 0.15f, 0.15f, 0.95f);
-
             GameObject textoGO = new GameObject("Texto", typeof(RectTransform));
             textoGO.transform.SetParent(boton.transform, false);
-            RectTransform textoRect = textoGO.GetComponent<RectTransform>();
-            textoRect.anchorMin = Vector2.zero;
-            textoRect.anchorMax = Vector2.one;
-            textoRect.offsetMin = Vector2.zero;
-            textoRect.offsetMax = Vector2.zero;
-            TMP_Text texto = textoGO.AddComponent<TextMeshProUGUI>();
-            texto.text = piso == 0 ? "PB" : $"Piso {piso}";
-            texto.alignment = TextAlignmentOptions.Center;
+            textoGO.AddComponent<TextMeshProUGUI>();
+            Tema.Estirar(textoGO.GetComponent<RectTransform>());
+
+            // Pestañas: la del piso que se está mirando va rellena con el
+            // color primario; las otras, sin fondo. Queda deshabilitada
+            // porque no tiene sentido volver a elegirla — por eso el color
+            // de deshabilitado es opaco (si no, se vería apagada).
+            bool esPisoActual = piso == GrillaGenerador.PisoActual;
+            Button componenteBoton = boton.GetComponent<Button>();
+            Tema.AplicarEstiloBoton(componenteBoton, esPisoActual ? Tema.EstiloBoton.Primario : Tema.EstiloBoton.Fantasma, 8);
+            componenteBoton.interactable = !esPisoActual;
+            ColorBlock colores = componenteBoton.colors;
+            colores.disabledColor = Color.white;
+            componenteBoton.colors = colores;
+
+            TMP_Text texto = textoGO.GetComponent<TMP_Text>();
+            string nombre = piso == 0 ? "PB" : $"Piso {piso}";
+            texto.color = esPisoActual ? Tema.TextoSobreColor : Tema.TextoSecundario;
+
+            // RF-20: un piso con advertencias lleva un punto rojo adelante,
+            // así se ve que hay algo para corregir en un piso que no se está
+            // mirando.
             ValidadorDiseno.Resultado validacion = ValidadorDiseno.UltimoResultado;
             bool tieneAdvertencias = validacion != null && validacion.PisosConAdvertencias.Contains(piso);
-            texto.color = tieneAdvertencias ? ColorPisoConAdvertencias : Color.white;
-            texto.fontSize = 18;
-            texto.raycastTarget = false;
+            string colorPunto = Tema.HexDe(esPisoActual ? Tema.Hex("#FFC2CD") : Tema.Peligro);
+            texto.text = tieneAdvertencias ? $"<color={colorPunto}>●</color> {nombre}" : nombre;
 
-            // El piso que se está mirando queda deshabilitado: marca cuál es
-            // y no tiene sentido volver a elegirlo.
-            Button componenteBoton = boton.GetComponent<Button>();
-            componenteBoton.interactable = piso != GrillaGenerador.PisoActual;
             componenteBoton.onClick.AddListener(() => GrillaGenerador.MostrarPiso(piso));
         }
 
@@ -119,7 +125,7 @@ namespace Sme.UI
             Vector2 posicionPantalla = RectTransformUtility.WorldToScreenPoint(null, botonEliminarPiso.transform.position);
 
             MenuContextual.Mostrar(botonEliminarPiso, posicionPantalla,
-                new MenuContextual.Opcion($"Eliminar {GrillaGenerador.NombrePiso(piso)} y sus piezas", () => GrillaGenerador.EliminarPiso(piso)),
+                new MenuContextual.Opcion($"Eliminar {GrillaGenerador.NombrePiso(piso)} y sus piezas", () => GrillaGenerador.EliminarPiso(piso), esDestructiva: true),
                 new MenuContextual.Opcion("Cancelar", () => { }));
         }
     }

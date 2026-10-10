@@ -18,7 +18,7 @@ namespace Sme.UI
         [SerializeField] private TMP_Dropdown campoPreguntaSeguridad;
         [SerializeField] private TMP_InputField campoRespuestaSeguridad;
         [SerializeField] private Button botonRegistrar;
-        [SerializeField] private TMP_Text textoError;
+        [SerializeField] private AvisoError avisoError;
 
         [SerializeField] private UnityEvent alRegistrarseConExito;
 
@@ -77,14 +77,12 @@ namespace Sme.UI
 
         private void MostrarError(string mensaje)
         {
-            textoError.text = mensaje;
-            textoError.gameObject.SetActive(true);
+            avisoError.Mostrar(mensaje);
         }
 
         private void OcultarError()
         {
-            textoError.text = string.Empty;
-            textoError.gameObject.SetActive(false);
+            avisoError.Ocultar();
         }
     }
 }

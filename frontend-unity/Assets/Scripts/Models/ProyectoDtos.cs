@@ -44,6 +44,20 @@ namespace Sme.Models
         public string nombre;
     }
 
+    // Cambiar el nombre de un proyecto: PUT /proyectos/{id}/nombre.
+    [Serializable]
+    public class RenombrarProyectoRequest
+    {
+        public string nombre;
+    }
+
+    [Serializable]
+    public class RenombrarProyectoResponse
+    {
+        public long proyectoId;
+        public string nombre;
+    }
+
     // Borrar un proyecto: DELETE /proyectos/{id}. Mismo caso que el anterior,
     // sin body.
     [Serializable]

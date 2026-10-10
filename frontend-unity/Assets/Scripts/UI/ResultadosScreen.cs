@@ -17,10 +17,19 @@ namespace Sme.UI
     // (recién ejecutado) o InicioScreen (el guardado, desde "Ver resultados").
     public class ResultadosScreen : MonoBehaviour
     {
+        // Una tarjeta por indicador: el valor grande y una línea de detalle.
         [SerializeField] private TMP_Text textoEficiencia;
+        [SerializeField] private TMP_Text textoEficienciaDetalle;
         [SerializeField] private TMP_Text textoSaturacion;
+        [SerializeField] private TMP_Text textoSaturacionDetalle;
         [SerializeField] private TMP_Text textoDemanda;
+        [SerializeField] private TMP_Text textoDemandaDetalle;
         [SerializeField] private TMP_Text textoPuntuacion;
+        [SerializeField] private TMP_Text textoPuntuacionDetalle;
+
+        // RF-28: la lista completa de intervalos de saturación, debajo del
+        // gráfico (en la tarjeta solo va un resumen). Se oculta si no hubo.
+        [SerializeField] private TMP_Text textoPeriodosSaturacion;
         // Las etiquetas de los ejes (horas y plazas) las arma el gráfico.
         [SerializeField] private GraficoCurva grafico;
 
@@ -55,23 +64,35 @@ namespace Sme.UI
         private void Start()
         {
             textoEstadoGuardado.text = string.Empty;
+            textoPeriodosSaturacion.gameObject.SetActive(false);
 
             EjecutarSimulacionResponse resultado = ProyectoManager.UltimaSimulacion;
             if (resultado == null)
             {
                 // RF-23, A1: sin simulación no hay nada que guardar.
-                textoEficiencia.text = "Todavía no se ejecutó ninguna simulación.";
-                textoSaturacion.text = string.Empty;
-                textoDemanda.text = string.Empty;
-                textoPuntuacion.text = string.Empty;
+                textoEstadoGuardado.text = "Todavía no se ejecutó ninguna simulación.";
+                textoEficiencia.text = "—";
+                textoEficienciaDetalle.text = string.Empty;
+                textoSaturacion.text = "—";
+                textoSaturacionDetalle.text = string.Empty;
+                textoDemanda.text = "—";
+                textoDemandaDetalle.text = string.Empty;
+                textoPuntuacion.text = "—";
+                textoPuntuacionDetalle.text = string.Empty;
                 botonGuardarResultados.interactable = false;
                 return;
             }
 
-            textoEficiencia.text = FormatoIndicadores.Eficiencia(resultado);
-            textoSaturacion.text = FormatoIndicadores.Saturacion(resultado, ProyectoManager.HoraInicioSimulacion);
-            textoDemanda.text = FormatoIndicadores.Demanda(resultado);
-            textoPuntuacion.text = FormatoIndicadores.Puntuacion(resultado);
+            textoEficiencia.text = FormatoIndicadores.ValorEficiencia(resultado);
+            textoEficienciaDetalle.text = FormatoIndicadores.DetalleEficiencia(resultado);
+            textoSaturacion.text = FormatoIndicadores.ValorSaturacion(resultado);
+            textoSaturacionDetalle.text = FormatoIndicadores.DetalleSaturacion(resultado, ProyectoManager.HoraInicioSimulacion);
+            textoPeriodosSaturacion.text = FormatoIndicadores.PeriodosSaturacion(resultado, ProyectoManager.HoraInicioSimulacion);
+            textoPeriodosSaturacion.gameObject.SetActive(textoPeriodosSaturacion.text.Length > 0);
+            textoDemanda.text = FormatoIndicadores.ValorDemanda(resultado);
+            textoDemandaDetalle.text = FormatoIndicadores.DetalleDemanda(resultado);
+            textoPuntuacion.text = FormatoIndicadores.ValorPuntuacion(resultado);
+            textoPuntuacionDetalle.text = FormatoIndicadores.DetallePuntuacion(resultado);
             MostrarCurva(resultado);
 
             if (ProyectoManager.SimulacionGuardada)

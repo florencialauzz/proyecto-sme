@@ -61,6 +61,7 @@ namespace Sme.Grid
                 VerificarAlcanzabilidad(celdas, resultado);
             }
             VerificarCaminoPeatonalEscaleras(celdas, resultado);
+            VerificarEscalerasConectadasArriba(celdas, resultado);
             VerificarPlazasLleganAEscalera(celdas, resultado);
             VerificarRampasDeIdaYVuelta(celdas, resultado);
             VerificarPlazasAccesibles(celdas, resultado);
@@ -270,6 +271,33 @@ namespace Sme.Grid
             foreach (CeldaGrilla alcanzada in RecorrerAPie(new List<CeldaGrilla> { escaleraEnPlantaBaja }))
             {
                 if (alcanzada.Tipo == TipoPieza.ENTRADA || alcanzada.Tipo == TipoPieza.SALIDA) return true;
+            }
+            return false;
+        }
+
+        // --- 4a. En los pisos de arriba, la escalera está conectada ---
+
+        // En cada piso que no es planta baja, la escalera tiene que tocar al
+        // menos una celda caminable que no sea otra escalera: si no, nadie
+        // llega a ella en ese piso. La 4b no lo detecta cuando el piso no
+        // tiene plazas, o cuando las plazas llegan a otra escalera.
+        private static void VerificarEscalerasConectadasArriba(List<CeldaGrilla> celdas, Resultado resultado)
+        {
+            foreach (CeldaGrilla celda in celdas)
+            {
+                if (celda.Tipo != TipoPieza.ESCALERA || celda.Piso == 0) continue;
+                if (EstaConectadaAPie(celda)) continue;
+
+                Marcar(celda, resultado);
+                resultado.Mensajes.Add($"{EncabezadoPiso(celda.Piso)}: la escalera de la fila {celda.Fila + 1}, columna {celda.Columna + 1} no está conectada a ninguna calle ni plaza.");
+            }
+        }
+
+        private static bool EstaConectadaAPie(CeldaGrilla escalera)
+        {
+            foreach (CeldaGrilla alcanzada in RecorrerAPie(new List<CeldaGrilla> { escalera }))
+            {
+                if (alcanzada.Tipo != TipoPieza.ESCALERA) return true;
             }
             return false;
         }
