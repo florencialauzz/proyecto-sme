@@ -27,7 +27,7 @@ namespace Sme.UI
         // explicación.
         [SerializeField] private Toggle toggleFluctuaciones;
         [SerializeField] private Button botonGuardar;
-        [SerializeField] private TMP_Text textoError;
+        [SerializeField] private AvisoError avisoError;
 
         // Volver sin guardar: regresa a la pantalla desde la que se llegó (el
         // Editor, o Inicio si se acaba de crear o abrir el proyecto). Lo que se
@@ -147,14 +147,12 @@ namespace Sme.UI
 
         private void MostrarError(string mensaje)
         {
-            textoError.text = mensaje;
-            textoError.gameObject.SetActive(true);
+            avisoError.Mostrar(mensaje);
         }
 
         private void OcultarError()
         {
-            textoError.text = string.Empty;
-            textoError.gameObject.SetActive(false);
+            avisoError.Ocultar();
         }
     }
 }

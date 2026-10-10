@@ -1,3 +1,4 @@
+using Sme.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,18 +13,23 @@ namespace Sme.Grid
     // en sí, así que ese armado de GameObjects se unificó acá.
     public static class MenuContextual
     {
-        private const float Ancho = 220f;
-        private const float Alto = 40f;
+        private const float Ancho = 260f;
+        private const float AltoOpcion = 42f;
+        private const float Margen = 6f;
 
         public readonly struct Opcion
         {
             public readonly string Texto;
             public readonly System.Action Accion;
 
-            public Opcion(string texto, System.Action accion)
+            // Las opciones que borran algo (Eliminar) van en rojo.
+            public readonly bool EsDestructiva;
+
+            public Opcion(string texto, System.Action accion, bool esDestructiva = false)
             {
                 Texto = texto;
                 Accion = accion;
+                EsDestructiva = esDestructiva;
             }
         }
 
@@ -35,10 +41,7 @@ namespace Sme.Grid
                 "FondoMenuContextual", typeof(RectTransform), typeof(Image), typeof(Button), typeof(Canvas), typeof(GraphicRaycaster));
             fondo.transform.SetParent(canvasRaiz.transform, false);
             RectTransform fondoRect = fondo.GetComponent<RectTransform>();
-            fondoRect.anchorMin = Vector2.zero;
-            fondoRect.anchorMax = Vector2.one;
-            fondoRect.offsetMin = Vector2.zero;
-            fondoRect.offsetMax = Vector2.zero;
+            Tema.Estirar(fondoRect);
             fondo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
             fondo.GetComponent<Button>().onClick.AddListener(() => Object.Destroy(fondo));
 
@@ -49,7 +52,7 @@ namespace Sme.Grid
             // sortingOrder más alto todavía para no quedar tapado por nada.
             Canvas canvasMenu = fondo.GetComponent<Canvas>();
             canvasMenu.overrideSorting = true;
-            canvasMenu.sortingOrder = 3;
+            canvasMenu.sortingOrder = 10;
 
             // fondoRect cubre el mismo rectángulo que canvasRaiz, así que un
             // punto de pantalla convertido a coordenadas locales de
@@ -57,37 +60,59 @@ namespace Sme.Grid
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvasRaiz.transform as RectTransform, posicionPantalla, canvasRaiz.worldCamera, out Vector2 posicionLocal);
 
+            // La tarjeta oscura que contiene las opciones, apiladas hacia
+            // abajo desde el punto de clic en el orden en que se pasaron.
+            GameObject tarjeta = new GameObject("TarjetaMenu", typeof(RectTransform), typeof(Image), typeof(Shadow));
+            tarjeta.transform.SetParent(fondo.transform, false);
+            RectTransform tarjetaRect = tarjeta.GetComponent<RectTransform>();
+            tarjetaRect.anchorMin = tarjetaRect.anchorMax = new Vector2(0.5f, 0.5f);
+            tarjetaRect.pivot = new Vector2(0f, 1f);
+            tarjetaRect.sizeDelta = new Vector2(Ancho, AltoOpcion * opciones.Length + Margen * 2);
+            tarjetaRect.anchoredPosition = posicionLocal;
+            Image imagenTarjeta = tarjeta.GetComponent<Image>();
+            imagenTarjeta.sprite = Tema.Redondeado(12);
+            imagenTarjeta.type = Image.Type.Sliced;
+            imagenTarjeta.color = Tema.Oscuro;
+            Shadow sombra = tarjeta.GetComponent<Shadow>();
+            sombra.effectColor = new Color(0.05f, 0.07f, 0.2f, 0.25f);
+            sombra.effectDistance = new Vector2(0f, -6f);
+
             for (int i = 0; i < opciones.Length; i++)
             {
                 Opcion opcion = opciones[i];
 
                 GameObject boton = new GameObject($"OpcionMenuContextual_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
-                boton.transform.SetParent(fondo.transform, false);
+                boton.transform.SetParent(tarjeta.transform, false);
                 RectTransform botonRect = boton.GetComponent<RectTransform>();
-                botonRect.sizeDelta = new Vector2(Ancho, Alto);
-                botonRect.pivot = new Vector2(0f, 1f);
-                botonRect.anchorMin = botonRect.anchorMax = new Vector2(0.5f, 0.5f);
-                // Se apilan hacia abajo desde el punto de clic, una debajo
-                // de la otra, en el orden en que se pasaron las opciones.
-                botonRect.anchoredPosition = posicionLocal - new Vector2(0f, Alto * i);
-                boton.GetComponent<Image>().color = new Color(0.15f, 0.15f, 0.15f, 0.95f);
+                botonRect.anchorMin = new Vector2(0f, 1f);
+                botonRect.anchorMax = new Vector2(1f, 1f);
+                botonRect.pivot = new Vector2(0.5f, 1f);
+                botonRect.sizeDelta = new Vector2(-Margen * 2, AltoOpcion);
+                botonRect.anchoredPosition = new Vector2(0f, -Margen - AltoOpcion * i);
 
-                GameObject textoGO = new GameObject("Texto", typeof(RectTransform));
-                textoGO.transform.SetParent(boton.transform, false);
-                RectTransform textoRect = textoGO.GetComponent<RectTransform>();
-                textoRect.anchorMin = Vector2.zero;
-                textoRect.anchorMax = Vector2.one;
-                textoRect.offsetMin = Vector2.zero;
-                textoRect.offsetMax = Vector2.zero;
-                TMP_Text texto = textoGO.AddComponent<TextMeshProUGUI>();
-                texto.text = opcion.Texto;
-                texto.alignment = TextAlignmentOptions.Center;
-                texto.color = Color.white;
-                texto.fontSize = 18;
-                texto.raycastTarget = false;
+                TMP_Text texto = Tema.CrearTexto(boton.transform, "Texto", opcion.Texto,
+                    Tema.FuenteTextoFuerte, Tema.TamanioEtiqueta, Color.white, TextAlignmentOptions.Left);
+                Tema.Estirar(texto.rectTransform, 14f, 0f);
+
+                texto.color = opcion.EsDestructiva ? Tema.Hex("#FF7A90") : Color.white;
+
+                // Fondo blanco transparente: al pasar el puntero se tiñe a un
+                // blanco tenue sobre la tarjeta oscura.
+                Image imagenBoton = boton.GetComponent<Image>();
+                imagenBoton.sprite = Tema.Redondeado(8);
+                imagenBoton.type = Image.Type.Sliced;
+                imagenBoton.color = Color.white;
+                Button componenteBoton = boton.GetComponent<Button>();
+                ColorBlock colores = componenteBoton.colors;
+                colores.normalColor = new Color(1f, 1f, 1f, 0f);
+                colores.highlightedColor = new Color(1f, 1f, 1f, 0.1f);
+                colores.pressedColor = new Color(1f, 1f, 1f, 0.18f);
+                colores.selectedColor = new Color(1f, 1f, 1f, 0f);
+                colores.fadeDuration = 0.08f;
+                componenteBoton.colors = colores;
 
                 System.Action accion = opcion.Accion;
-                boton.GetComponent<Button>().onClick.AddListener(() =>
+                componenteBoton.onClick.AddListener(() =>
                 {
                     accion();
                     Object.Destroy(fondo);

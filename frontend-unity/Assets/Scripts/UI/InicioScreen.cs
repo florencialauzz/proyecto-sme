@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Sme.Grid;
 using Sme.Managers;
 using Sme.Models;
 using TMPro;
@@ -10,8 +11,8 @@ namespace Sme.UI
 {
     // RF-06: Cerrar sesión, RF-07: Ingresar nombre de proyecto, RF-22: Listar
     // proyectos, RF-24: ver los resultados guardados de un proyecto, RF-25:
-    // Comparar resultados de proyectos, y duplicar o borrar un proyecto (sin
-    // RF propio todavía, ver pendientes.md). Requiere que los campos de abajo
+    // Comparar resultados de proyectos, y duplicar, borrar o cambiar el
+    // nombre de un proyecto (sin RF propio todavía, ver pendientes.md). Requiere que los campos de abajo
     // estén asignados en el Inspector, sobre el Canvas de la pantalla de
     // inicio (a la que se llega después de iniciar sesión).
     public class InicioScreen : MonoBehaviour
@@ -21,9 +22,14 @@ namespace Sme.UI
 
         [SerializeField] private Button botonCerrarSesion;
 
+        // Tarjeta de perfil de la barra lateral: nombre y la inicial en el
+        // círculo del avatar.
+        [SerializeField] private TMP_Text textoNombreUsuario;
+        [SerializeField] private TMP_Text textoInicialUsuario;
+
         [SerializeField] private TMP_InputField campoNombreProyecto;
         [SerializeField] private Button botonCrearProyecto;
-        [SerializeField] private TMP_Text textoError;
+        [SerializeField] private AvisoError avisoError;
 
         [SerializeField] private RectTransform contenedorProyectos;
         [SerializeField] private GameObject prefabItemProyecto;
@@ -41,6 +47,14 @@ namespace Sme.UI
         [SerializeField] private Button botonConfirmarEliminar;
         [SerializeField] private Button botonCancelarEliminar;
 
+        // Cambiar el nombre (clic derecho sobre un proyecto, sin RF propio
+        // todavía, ver pendientes.md): modal con el nombre nuevo.
+        [SerializeField] private GameObject panelRenombrar;
+        [SerializeField] private TMP_InputField campoNuevoNombre;
+        [SerializeField] private Button botonConfirmarRenombrar;
+        [SerializeField] private Button botonCancelarRenombrar;
+        [SerializeField] private AvisoError avisoErrorRenombrar;
+
         [SerializeField] private UnityEvent alCerrarSesion;
         [SerializeField] private UnityEvent alCrearProyectoConExito;
         [SerializeField] private UnityEvent alAbrirProyectoConExito;
@@ -51,6 +65,10 @@ namespace Sme.UI
         private readonly List<long> proyectosSeleccionados = new List<long>();
         private readonly Dictionary<long, Toggle> togglesPorProyecto = new Dictionary<long, Toggle>();
         private readonly Dictionary<long, string> nombresPorProyecto = new Dictionary<long, string>();
+
+        // El proyecto a renombrar se guarda aparte de la selección: el clic
+        // derecho no tilda ni destilda la fila.
+        private long proyectoARenombrar;
 
         private void Awake()
         {
@@ -63,9 +81,20 @@ namespace Sme.UI
             botonEliminar.onClick.AddListener(PedirConfirmacionEliminar);
             botonConfirmarEliminar.onClick.AddListener(EliminarSeleccionado);
             botonCancelarEliminar.onClick.AddListener(CerrarConfirmacionEliminar);
+            botonConfirmarRenombrar.onClick.AddListener(Renombrar);
+            botonCancelarRenombrar.onClick.AddListener(CerrarRenombrar);
             panelConfirmarEliminar.SetActive(false);
+            panelRenombrar.SetActive(false);
+            MostrarPerfil();
             ActualizarBotonesSeleccion();
             CargarProyectos();
+        }
+
+        private void MostrarPerfil()
+        {
+            string nombre = string.IsNullOrEmpty(SesionManager.NombreUsuario) ? "Usuario" : SesionManager.NombreUsuario;
+            textoNombreUsuario.text = nombre;
+            textoInicialUsuario.text = nombre.Substring(0, 1).ToUpperInvariant();
         }
 
         // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
@@ -108,6 +137,13 @@ namespace Sme.UI
                         togglesPorProyecto[proyectoId] = toggle;
                         nombresPorProyecto[proyectoId] = proyecto.nombre;
                         toggle.onValueChanged.AddListener(seleccionado => SeleccionarProyecto(seleccionado, proyectoId));
+
+                        // La fila entera se tiñe al seleccionarla, no solo la casilla.
+                        Image fondoFila = item.GetComponent<Image>();
+                        toggle.onValueChanged.AddListener(seleccionado => PintarFila(fondoFila, seleccionado));
+
+                        DetectorClicDerecho clicDerecho = item.AddComponent<DetectorClicDerecho>();
+                        clicDerecho.AlHacerClicDerecho += posicion => MostrarMenuProyecto(item.transform, posicion, proyectoId);
                     }
                 },
                 alFallar: (mensaje, codigo) => MostrarError(mensaje));
@@ -132,6 +168,12 @@ namespace Sme.UI
             }
 
             ActualizarBotonesSeleccion();
+        }
+
+        private static void PintarFila(Image fondoFila, bool seleccionada)
+        {
+            if (fondoFila == null) return;
+            fondoFila.color = seleccionada ? Tema.PrimarioSuave : Tema.Superficie;
         }
 
         // Abrir, Ver resultados, Duplicar y Eliminar actúan sobre un solo
@@ -278,6 +320,54 @@ namespace Sme.UI
                 });
         }
 
+        // --- Cambiar nombre ---
+
+        private void MostrarMenuProyecto(Transform fila, Vector2 posicionPantalla, long proyectoId)
+        {
+            MenuContextual.Mostrar(fila, posicionPantalla,
+                new MenuContextual.Opcion("Cambiar nombre", () => AbrirRenombrar(proyectoId)));
+        }
+
+        private void AbrirRenombrar(long proyectoId)
+        {
+            proyectoARenombrar = proyectoId;
+            campoNuevoNombre.text = nombresPorProyecto[proyectoId];
+            avisoErrorRenombrar.Ocultar();
+            botonConfirmarRenombrar.interactable = true;
+            panelRenombrar.SetActive(true);
+            campoNuevoNombre.Select();
+            campoNuevoNombre.ActivateInputField();
+        }
+
+        private void CerrarRenombrar()
+        {
+            panelRenombrar.SetActive(false);
+        }
+
+        // Nombre vacío o repetido los rechaza el backend (mismas reglas que
+        // RF-07), con el mensaje listo para mostrar en el modal.
+        private void Renombrar()
+        {
+            avisoErrorRenombrar.Ocultar();
+            botonConfirmarRenombrar.interactable = false;
+
+            ApiClient.Put<RenombrarProyectoRequest, RenombrarProyectoResponse>(
+                $"/proyectos/{proyectoARenombrar}/nombre",
+                new RenombrarProyectoRequest { nombre = campoNuevoNombre.text },
+                alTenerExito: respuesta =>
+                {
+                    CerrarRenombrar();
+                    CargarProyectos();
+                },
+                alFallar: (mensaje, codigo) =>
+                {
+                    botonConfirmarRenombrar.interactable = true;
+                    avisoErrorRenombrar.Mostrar(mensaje);
+                });
+        }
+
+        // --- Eliminar ---
+
         private void PedirConfirmacionEliminar()
         {
             if (proyectosSeleccionados.Count != 1) return;
@@ -375,14 +465,12 @@ namespace Sme.UI
 
         private void MostrarError(string mensaje)
         {
-            textoError.text = mensaje;
-            textoError.gameObject.SetActive(true);
+            avisoError.Mostrar(mensaje);
         }
 
         private void OcultarError()
         {
-            textoError.text = string.Empty;
-            textoError.gameObject.SetActive(false);
+            avisoError.Ocultar();
         }
     }
 }

@@ -11,40 +11,93 @@ namespace Sme.UI
     {
         private const int MinutosPorHora = 60;
 
-        // RF-15
-        public static string Eficiencia(EjecutarSimulacionResponse resultado)
+        // --- Tarjetas de la pantalla de Resultados (RF-24) ---
+        // Cada indicador se muestra como un número grande (Valor...) con una
+        // línea de detalle abajo (Detalle...). La etiqueta del indicador está
+        // fija en la escena. RF-15 eficiencia, RF-29 demanda, RF-28
+        // saturación, RF-30 puntuación.
+
+        public static string ValorEficiencia(EjecutarSimulacionResponse resultado)
         {
-            return $"Eficiencia espacial: {Porcentaje(resultado.eficienciaEspacial)}% ({resultado.calificacionEficiencia})";
+            return $"{Porcentaje(resultado.eficienciaEspacial)}%";
         }
 
-        // RF-29
-        public static string Demanda(EjecutarSimulacionResponse resultado)
+        public static string DetalleEficiencia(EjecutarSimulacionResponse resultado)
         {
-            return $"Demanda satisfecha: {Porcentaje(resultado.demandaSatisfecha)}% " +
-                   $"({resultado.vehiculosRechazados} vehículos rechazados)";
+            return $"Calificación: {resultado.calificacionEficiencia}";
         }
 
-        // RF-30
-        public static string Puntuacion(EjecutarSimulacionResponse resultado)
+        public static string ValorDemanda(EjecutarSimulacionResponse resultado)
         {
-            return $"Puntuación general: {Porcentaje(resultado.puntuacionGeneral)} / 100 ({resultado.calificacionTexto})";
+            return $"{Porcentaje(resultado.demandaSatisfecha)}%";
         }
 
-        // RF-28: los intervalos en horas del día, seguidos y separados por
-        // coma (uno por renglón empujaba la gráfica cuando eran varios). Un
-        // intervalo [inicio, fin] incluye el minuto fin entero, así que la
-        // hora de cierre es la del minuto siguiente. Sin intervalos, Flujo
-        // Alternativo A1.
-        public static string Saturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
+        public static string DetalleDemanda(EjecutarSimulacionResponse resultado)
+        {
+            return resultado.vehiculosRechazados == 1
+                ? "1 vehículo rechazado"
+                : $"{resultado.vehiculosRechazados} vehículos rechazados";
+        }
+
+        public static string ValorSaturacion(EjecutarSimulacionResponse resultado)
         {
             PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
             if (periodos == null || periodos.Length == 0)
             {
-                return "Período de saturación: no hubo saturación.";
+                return "Sin saturación";
             }
 
+            return $"{MinutosSaturados(periodos)} min";
+        }
+
+        // Resumen corto para la tarjeta: con un solo intervalo, sus horas;
+        // con varios, cuántos son. La lista completa no entra en la tarjeta
+        // (con muchos intervalos la ensanchaba y corría a las otras): va
+        // debajo del gráfico (PeriodosSaturacion).
+        public static string DetalleSaturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
+        {
+            PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
+            if (periodos == null || periodos.Length == 0)
+            {
+                return "El estacionamiento nunca se llenó.";
+            }
+            if (periodos.Length == 1)
+            {
+                string intervalo = IntervalosSaturacion(periodos, horaInicioSimulacion);
+                return char.ToUpperInvariant(intervalo[0]) + intervalo.Substring(1);
+            }
+            return $"En {periodos.Length} intervalos (detalle debajo del gráfico)";
+        }
+
+        // RF-28: todos los intervalos en horas del día, seguidos y separados
+        // por coma. Vacío si no hubo saturación.
+        public static string PeriodosSaturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
+        {
+            PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
+            if (periodos == null || periodos.Length == 0)
+            {
+                return string.Empty;
+            }
+            return "Períodos de saturación: " + IntervalosSaturacion(periodos, horaInicioSimulacion) + ".";
+        }
+
+        public static string ValorPuntuacion(EjecutarSimulacionResponse resultado)
+        {
+            return $"{Porcentaje(resultado.puntuacionGeneral)}<size=55%> / 100</size>";
+        }
+
+        public static string DetallePuntuacion(EjecutarSimulacionResponse resultado)
+        {
+            return resultado.calificacionTexto;
+        }
+
+        // "de 10:00 a 11:30, de 15:00 a 15:20". Un intervalo [inicio, fin]
+        // incluye el minuto fin entero, así que la hora de cierre es la del
+        // minuto siguiente.
+        private static string IntervalosSaturacion(PeriodoSaturacionDto[] periodos, string horaInicioSimulacion)
+        {
             int minutoInicioDelDia = MinutoDelDia(horaInicioSimulacion);
-            var texto = new StringBuilder("Período de saturación: ");
+            var texto = new StringBuilder();
             for (int i = 0; i < periodos.Length; i++)
             {
                 if (i > 0)
@@ -56,6 +109,16 @@ namespace Sme.UI
                 texto.Append($"de {desde} a {hasta}");
             }
             return texto.ToString();
+        }
+
+        private static int MinutosSaturados(PeriodoSaturacionDto[] periodos)
+        {
+            int minutosSaturados = 0;
+            foreach (PeriodoSaturacionDto periodo in periodos)
+            {
+                minutosSaturados += periodo.fin - periodo.inicio + 1;
+            }
+            return minutosSaturados;
         }
 
         // RF-25: todos los indicadores juntos, para un modal de comparación.
@@ -79,11 +142,7 @@ namespace Sme.UI
                 return "Saturación: no hubo";
             }
 
-            int minutosSaturados = 0;
-            foreach (PeriodoSaturacionDto periodo in periodos)
-            {
-                minutosSaturados += periodo.fin - periodo.inicio + 1;
-            }
+            int minutosSaturados = MinutosSaturados(periodos);
 
             string intervalos = periodos.Length == 1 ? "1 intervalo" : $"{periodos.Length} intervalos";
             return $"Saturación: {intervalos}, {minutosSaturados} min";

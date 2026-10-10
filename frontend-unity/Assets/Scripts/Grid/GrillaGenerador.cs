@@ -99,6 +99,9 @@ namespace Sme.Grid
             // backend) se edita como de un solo piso.
             int pisos = Mathf.Max(1, ProyectoManager.CantidadPisos);
             Construir(pisos, ProyectoManager.PiezasACargar, 0);
+
+            // Lo que se acaba de cargar es lo que está guardado en el backend.
+            MarcarDisenoGuardado();
         }
 
         // Arma todos los pisos desde cero y coloca las piezas recibidas. Lo usa
@@ -510,6 +513,40 @@ namespace Sme.Grid
         // por piso, porque tienen una vista hija en cada celda que ocupan.
         // includeInactive: las piezas de los pisos que no se están mirando
         // están en contenedores ocultos, y también hay que guardarlas.
+        // --- Cambios sin guardar ---
+
+        // EditorScreen pregunta antes de salir si el diseño cambió desde la
+        // última vez que se guardó (o desde que se abrió). No se lleva la
+        // cuenta de cada cambio: se compara una "firma" del diseño (todas las
+        // piezas y la cantidad de pisos, en texto) contra la del último
+        // guardado. Así colocar una pieza y volver a quitarla no cuenta como
+        // cambio.
+        private static string firmaGuardada;
+
+        public static void MarcarDisenoGuardado()
+        {
+            firmaGuardada = FirmaDelDiseno();
+        }
+
+        public static bool HayCambiosSinGuardar()
+        {
+            return FirmaDelDiseno() != firmaGuardada;
+        }
+
+        // Ordenada, porque RecolectarPiezas recorre un diccionario y su orden
+        // no está garantizado.
+        private static string FirmaDelDiseno()
+        {
+            var lineas = new List<string>();
+            foreach (PiezaDto pieza in RecolectarPiezas())
+            {
+                lineas.Add($"{pieza.piso},{pieza.fila},{pieza.columna},{pieza.tipo},{pieza.caraAcceso}," +
+                           $"{pieza.esAccesible},{pieza.esCrucePeatonal},{pieza.sentidoVertical}");
+            }
+            lineas.Sort(string.CompareOrdinal);
+            return CantidadPisos + "|" + string.Join(";", lineas);
+        }
+
         public static PiezaDto[] RecolectarPiezas()
         {
             var piezas = new List<PiezaDto>();

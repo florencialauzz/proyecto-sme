@@ -32,8 +32,15 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    // RF-01: valida duplicado (A1) y coincidencia de contraseñas (A2) antes de registrar.
+    // RF-01: valida que estén todos los campos (punto 3 del flujo principal),
+    // duplicado (A1) y coincidencia de contraseñas (A2) antes de registrar.
     public RegistroResponse registrar(RegistroRequest request) {
+        if (estaVacio(request.nombreUsuario()) || estaVacio(request.contrasena())
+                || estaVacio(request.confirmacionContrasena()) || estaVacio(request.preguntaSeguridad())
+                || estaVacio(request.respuestaSeguridad())) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CAMPOS_INCOMPLETOS",
+                    "Completá todos los campos para registrarte");
+        }
         if (usuarioRepository.existsByNombreUsuario(request.nombreUsuario())) {
             throw new NegocioException(HttpStatus.CONFLICT, "USUARIO_DUPLICADO", "Nombre de usuario ya registrado");
         }
@@ -84,6 +91,10 @@ public class AuthService {
             throw new NegocioException(HttpStatus.UNAUTHORIZED, "RESPUESTA_SEGURIDAD_INCORRECTA",
                     "La respuesta ingresada no es correcta");
         }
+        if (estaVacio(request.nuevaContrasena())) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CAMPOS_INCOMPLETOS",
+                    "La contraseña nueva no puede estar vacía");
+        }
         if (!request.nuevaContrasena().equals(request.confirmacionNuevaContrasena())) {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "CONTRASENA_NO_COINCIDE",
                     "La contraseña y su confirmación no coinciden");
@@ -102,6 +113,10 @@ public class AuthService {
         if (!passwordEncoder.matches(request.contrasenaActual(), usuario.getContrasenaHash())) {
             throw new NegocioException(HttpStatus.UNAUTHORIZED, "CONTRASENA_ACTUAL_INCORRECTA",
                     "La contraseña actual ingresada no es correcta");
+        }
+        if (estaVacio(request.contrasenaNueva())) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CAMPOS_INCOMPLETOS",
+                    "La contraseña nueva no puede estar vacía");
         }
         if (!request.contrasenaNueva().equals(request.confirmacionContrasenaNueva())) {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "CONTRASENA_NO_COINCIDE",
@@ -125,6 +140,11 @@ public class AuthService {
 
         usuarioRepository.delete(usuario);
         return new EliminarCuentaResponse(true);
+    }
+
+    // Un campo con solo espacios cuenta como vacío.
+    private static boolean estaVacio(String valor) {
+        return valor == null || valor.isBlank();
     }
 
     private Usuario buscarPorNombreUsuarioOFallar(String nombreUsuario) {

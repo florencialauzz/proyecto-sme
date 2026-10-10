@@ -8,10 +8,15 @@ namespace Sme.Managers
         public static long UsuarioId { get; private set; }
         public static bool HaySesionActiva => !string.IsNullOrEmpty(Token);
 
-        public static void GuardarSesion(long usuarioId, string token)
+        // Solo para mostrarlo en el perfil de Inicio: la respuesta del login
+        // no lo trae, así que se guarda el que el usuario escribió.
+        public static string NombreUsuario { get; private set; }
+
+        public static void GuardarSesion(long usuarioId, string token, string nombreUsuario)
         {
             UsuarioId = usuarioId;
             Token = token;
+            NombreUsuario = nombreUsuario;
         }
 
         // RF-06: JWT stateless, no hay nada que avisarle al backend. Alcanza con
@@ -20,6 +25,7 @@ namespace Sme.Managers
         {
             UsuarioId = 0;
             Token = null;
+            NombreUsuario = null;
         }
     }
 }

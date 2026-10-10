@@ -115,7 +115,7 @@ namespace Sme.Grid
             string textoAccesible = esAccesible ? "Quitar accesibilidad" : "Marcar como accesible";
             MenuContextual.Mostrar(this, eventData.position,
                 new MenuContextual.Opcion(textoAccesible, AlternarAccesibilidad),
-                new MenuContextual.Opcion("Eliminar", Eliminar));
+                new MenuContextual.Opcion("Eliminar", Eliminar, esDestructiva: true));
         }
 
         // Llamado por MenuContextual al elegir "Marcar/Quitar accesibilidad".

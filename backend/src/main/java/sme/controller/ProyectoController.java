@@ -21,6 +21,8 @@ import sme.dto.GuardarGrillaRequest;
 import sme.dto.GuardarGrillaResponse;
 import sme.dto.ProyectoDetalleResponse;
 import sme.dto.ProyectoResumenResponse;
+import sme.dto.RenombrarProyectoRequest;
+import sme.dto.RenombrarProyectoResponse;
 import sme.service.ProyectoService;
 
 import java.util.List;
@@ -71,6 +73,15 @@ public class ProyectoController {
     public ResponseEntity<DuplicarProyectoResponse> duplicar(@PathVariable Long id, Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED).body(proyectoService.duplicar(usuarioId, id));
+    }
+
+    // Cambiar el nombre de un proyecto (sin RF propio todavía)
+    @PutMapping("/{id}/nombre")
+    public ResponseEntity<RenombrarProyectoResponse> renombrar(@PathVariable Long id,
+                                                               @RequestBody RenombrarProyectoRequest request,
+                                                               Authentication authentication) {
+        Long usuarioId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(proyectoService.renombrar(usuarioId, id, request));
     }
 
     // Borrar un proyecto (sin RF propio todavía)

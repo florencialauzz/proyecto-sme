@@ -121,7 +121,7 @@ namespace Sme.Grid
         {
             if (estaArrastrando || eventData.button != PointerEventData.InputButton.Right) return;
 
-            MenuContextual.Mostrar(this, eventData.position, new MenuContextual.Opcion("Eliminar", Eliminar));
+            MenuContextual.Mostrar(this, eventData.position, new MenuContextual.Opcion("Eliminar", Eliminar, esDestructiva: true));
         }
 
         // Llamado por MenuContextual al elegir "Eliminar" — quita la pieza de

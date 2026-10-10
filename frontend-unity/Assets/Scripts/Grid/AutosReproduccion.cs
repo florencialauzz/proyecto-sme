@@ -39,17 +39,18 @@ namespace Sme.Grid
         // probando.
         private const float TramosPorSegundo = 4f;
 
-        // Un recorrido de salida o de rechazado se muestra solo si dura como
-        // mucho esto en minutos simulados; si no, no se dibuja. Así a
-        // velocidad alta no se juntan decenas de autos circulando: se
-        // saltea en vez de acumular atraso (animacion/reglas.md).
-        //
-        // A x1 tiene que entrar cualquier recorrido: 30 minutos = 30
-        // segundos = 120 tramos. El del rechazado es el más largo del diseño
-        // (hasta la plaza más lejana y de ahí a la Salida), y con 15 minutos
-        // (60 tramos) en una grilla llena no se llegaba a dibujar nunca. A
-        // x5 entran 24 tramos; a x20, 6.
+        // Un recorrido de salida se muestra solo si dura como mucho esto en
+        // minutos simulados; si no, no se dibuja. Así a velocidad alta no se
+        // juntan decenas de autos circulando: se saltea en vez de acumular
+        // atraso (animacion/reglas.md). A x1 entran 120 tramos; a x5, 24; a
+        // x20, 6.
         private const float MaximoMinutosRecorrido = 30f;
+
+        // El rechazado no usa ese máximo: su camino es el más largo del
+        // diseño (hasta la plaza más lejana y de ahí a la Salida) y casi
+        // nunca entraba a x5. Se dibuja siempre a x1 y x5, entero aunque
+        // tarde, y nunca a x20 (decisión del equipo, animacion/reglas.md).
+        private const float VelocidadMaximaConRechazados = 5f;
 
         // Tono suave sobre la plaza mientras su auto viene en camino.
         private static readonly Color ColorReservada = new Color(1f, 0.8f, 0.25f, 0.35f);
@@ -206,6 +207,10 @@ namespace Sme.Grid
                     int minutoSalida = reproduccion.eventos[auto.IndiceEvento].minutoSalida;
                     todaviaEntra = minutoActual + minutosQueFaltan < minutoSalida;
                 }
+                else if (auto.Tipo == TipoRecorrido.Rechazado)
+                {
+                    todaviaEntra = SeDibujanRechazados(minutosSimuladosPorSegundo);
+                }
                 else
                 {
                     todaviaEntra = minutosQueFaltan <= MaximoMinutosRecorrido;
@@ -270,8 +275,7 @@ namespace Sme.Grid
                 EventoVehiculoDto evento = reproduccion.eventos[indiceEvento];
                 if (evento.indicePlaza < 0)
                 {
-                    ArrancarRecorridoRechazadoSiEntra(indiceEvento, minutosDeEspera, segundosDeEspera,
-                        minutosSimuladosPorSegundo);
+                    ArrancarRecorridoRechazadoSiEntra(indiceEvento, segundosDeEspera, minutosSimuladosPorSegundo);
                     continue;
                 }
 
@@ -419,14 +423,15 @@ namespace Sme.Grid
         // plaza ni cuenta en la ocupación, y si se libera una plaza mientras
         // da la vuelta sigue de largo igual.
         //
-        // Mismo salteo que la salida: si la espera dentro del minuto más el
-        // recorrido duran más del máximo en minutos simulados, no se dibuja
-        // (el contador de rechazados sube igual, lo lleva ModoReproduccion).
-        // Sin plazas usables (indicePlazaRecorridoRechazados = -1) no hay
-        // camino y tampoco se dibuja; con un diseño que pasó RF-20 no pasa.
-        private void ArrancarRecorridoRechazadoSiEntra(int indiceEvento, float minutosDeEspera,
-            float segundosDeEspera, float minutosSimuladosPorSegundo)
+        // A x20 no se dibuja (VelocidadMaximaConRechazados); el contador de
+        // rechazados sube igual, lo lleva ModoReproduccion. Sin plazas
+        // usables (indicePlazaRecorridoRechazados = -1) no hay camino y
+        // tampoco se dibuja; con un diseño que pasó RF-20 no pasa.
+        private void ArrancarRecorridoRechazadoSiEntra(int indiceEvento, float segundosDeEspera,
+            float minutosSimuladosPorSegundo)
         {
+            if (!SeDibujanRechazados(minutosSimuladosPorSegundo)) return;
+
             int indicePlazaDelRecorrido = reproduccion.indicePlazaRecorridoRechazados;
             if (indicePlazaDelRecorrido < 0) return;
 
@@ -437,12 +442,15 @@ namespace Sme.Grid
             AgregarCeldas(plaza.caminoEntrada, 0, puntos, pisos);
             AgregarCeldas(plaza.caminoSalida, 1, puntos, pisos);
 
-            int tramos = puntos.Count - 1;
-            float minutosDelRecorrido = tramos / TramosPorSegundo * minutosSimuladosPorSegundo;
-            if (minutosDeEspera + minutosDelRecorrido > MaximoMinutosRecorrido) return;
-
             ArrancarRecorrido(TipoRecorrido.Rechazado, indiceEvento, SinPlaza, puntos, pisos,
                 primerTramoMarchaAtras: false, segundosDeEspera);
+        }
+
+        // A x1, un minuto simulado por segundo: la velocidad de reproducción
+        // es directamente minutosSimuladosPorSegundo (ModoReproduccion).
+        private static bool SeDibujanRechazados(float minutosSimuladosPorSegundo)
+        {
+            return minutosSimuladosPorSegundo <= VelocidadMaximaConRechazados;
         }
 
         // --- Recorridos en general ---
