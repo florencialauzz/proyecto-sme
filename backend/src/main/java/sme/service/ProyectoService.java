@@ -30,8 +30,6 @@ import java.util.List;
 
 @Service
 public class ProyectoService {
-
-    // Largo del nombre (VARCHAR(100)) menos lo que ocupa " (copia NN)".
     private static final int LARGO_MAXIMO_BASE_COPIA = 88;
 
     private final ProyectoRepository proyectoRepository;
@@ -42,9 +40,6 @@ public class ProyectoService {
         this.piezaRepository = piezaRepository;
     }
 
-    // RF-07: valida nombre vacío (A1) y nombre repetido para el mismo usuario (A2)
-    // antes de crear el proyecto. La grilla (RF-12) sale con los valores por
-    // defecto de la entidad (15x15) — no hace falta pedirlos.
     public CrearProyectoResponse crear(Long usuarioId, CrearProyectoRequest request) {
         if (request.nombre() == null || request.nombre().isBlank()) {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "NOMBRE_VACIO", "El nombre del proyecto no puede estar vacío");
@@ -62,7 +57,6 @@ public class ProyectoService {
                 proyecto.getEstado().name());
     }
 
-    // RF-22
     public List<ProyectoResumenResponse> listar(Long usuarioId) {
         return proyectoRepository.findByUsuarioIdOrderByFechaModificacionDesc(usuarioId).stream()
                 .map(proyecto -> new ProyectoResumenResponse(
@@ -73,8 +67,6 @@ public class ProyectoService {
                 .toList();
     }
 
-    // Abrir un proyecto guardado para seguir editándolo (contrato ya preveía
-    // este endpoint en la sección 2, no estaba implementado).
     public ProyectoDetalleResponse obtenerDetalle(Long usuarioId, Long proyectoId) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
@@ -109,10 +101,6 @@ public class ProyectoService {
                 proyecto.getEstado().name());
     }
 
-    // Duplicar un proyecto desde Inicio (sin RF propio todavía, ver
-    // pendientes.md): copia la configuración y la grilla, no los resultados
-    // de simulación — la copia es para probar una variante del diseño, y
-    // hasta que se simule no tiene resultados propios.
     @Transactional
     public DuplicarProyectoResponse duplicar(Long usuarioId, Long proyectoId) {
         Proyecto original = obtenerProyectoDelUsuario(usuarioId, proyectoId);
@@ -153,10 +141,6 @@ public class ProyectoService {
         return new DuplicarProyectoResponse(copia.getId(), copia.getNombre());
     }
 
-    // "Centro" → "Centro (copia)"; si ya existe, "Centro (copia 2)", y así.
-    // El nombre tiene que ser único por usuario (uq_proyecto_usuario_nombre).
-    // La columna admite 100 caracteres: con un nombre muy largo se recorta
-    // el original para que entre el sufijo.
     private String nombreDeCopia(Long usuarioId, String nombreProyecto) {
         String nombreOriginal = nombreProyecto.length() > LARGO_MAXIMO_BASE_COPIA
                 ? nombreProyecto.substring(0, LARGO_MAXIMO_BASE_COPIA)
@@ -170,10 +154,6 @@ public class ProyectoService {
         return nombre;
     }
 
-    // Cambiar el nombre de un proyecto desde Inicio (clic derecho, sin RF
-    // propio todavía, ver pendientes.md). Mismas reglas que el nombre al
-    // crearlo (RF-07): no vacío y no repetido entre los proyectos del
-    // usuario. Volver a poner el mismo nombre que ya tenía no es repetido.
     public RenombrarProyectoResponse renombrar(Long usuarioId, Long proyectoId, RenombrarProyectoRequest request) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
@@ -190,19 +170,12 @@ public class ProyectoService {
         return new RenombrarProyectoResponse(proyecto.getId(), proyecto.getNombre());
     }
 
-    // Borrar un proyecto desde Inicio (sin RF propio todavía, ver
-    // pendientes.md). Las piezas y los resultados de simulación los borra la
-    // base en cascada (contratos/esquema-bd.md), igual que en RF-05.
     public EliminarProyectoResponse eliminar(Long usuarioId, Long proyectoId) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
         proyectoRepository.delete(proyecto);
         return new EliminarProyectoResponse(true);
     }
 
-    // RF-08 a RF-11: cada validación corresponde al Flujo Alternativo A1 de su
-    // propio caso de uso (producto/casos-de-uso-expandidos.md) — se chequean
-    // en orden (pisos, frecuencia, permanencia, horario) y se corta en la
-    // primera que falle, igual que el resto de los métodos de este service.
     public GuardarConfiguracionResponse guardarConfiguracion(Long usuarioId, Long proyectoId, GuardarConfiguracionRequest request) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
@@ -210,9 +183,6 @@ public class ProyectoService {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "CANTIDAD_PISOS_INVALIDA",
                     "La cantidad de pisos debe ser un número entero mayor o igual a uno");
         }
-        // Bajar la cantidad de pisos desde acá dejaría piezas colgando en pisos
-        // que ya no existen, sin que el usuario elija cuál perder. Se hace
-        // eliminando el piso puntual desde el editor (guardarGrilla).
         if (proyecto.getCantidadPisos() != null && request.cantidadPisos() < proyecto.getCantidadPisos()) {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "CANTIDAD_PISOS_MENOR",
                     "No se puede reducir la cantidad de pisos desde la configuración. "
@@ -243,13 +213,6 @@ public class ProyectoService {
         return new GuardarConfiguracionResponse(true);
     }
 
-    // RF-13, RF-21: reemplaza la grilla completa del proyecto — se borran las
-    // piezas anteriores y se insertan las nuevas en la misma transacción.
-    //
-    // RF-18: cantidadPisos solo puede bajar por acá (eliminar un piso desde el
-    // editor); subir se hace desde la configuración. Las validaciones de
-    // colocación (RF-19) corren en Unity — esto solo evita guardar piezas en
-    // un piso que el proyecto no tiene.
     @Transactional
     public GuardarGrillaResponse guardarGrilla(Long usuarioId, Long proyectoId, GuardarGrillaRequest request) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
@@ -272,12 +235,8 @@ public class ProyectoService {
             proyectoRepository.save(proyecto);
         }
 
-        // flush() fuerza el DELETE a ejecutarse ya, antes del saveAll: sin esto,
-        // Hibernate ordena el flush por tipo de acción (todos los INSERT antes
-        // que los DELETE, sin importar el orden en que se llamaron acá), y una
-        // pieza reinsertada en la misma celda que tenía antes choca con la fila
-        // vieja todavía no borrada (uq_pieza_celda).
         piezaRepository.deleteByProyectoId(proyecto.getId());
+        // Sin flush Hibernate hace los INSERT antes que el DELETE y choca con uq_pieza_celda
         piezaRepository.flush();
 
         List<Pieza> piezas = request.piezas().stream()
@@ -295,8 +254,6 @@ public class ProyectoService {
         pieza.setFila(dto.fila());
         pieza.setColumna(dto.columna());
         pieza.setTipo(dto.tipo());
-        // La Escalera no tiene orientación (dominio/modelo-clases.md): lo que
-        // venga en caraAcceso se descarta en vez de guardarse en una columna.
         if (dto.tipo() == TipoPieza.ESCALERA) {
             pieza.setDireccion(null);
             pieza.setCaraAcceso(null);
@@ -313,22 +270,16 @@ public class ProyectoService {
         return pieza;
     }
 
-    // El wire contract (contratos/api-contract.md) manda la orientación de
-    // cualquier pieza en un solo campo JSON ("caraAcceso"), pero el modelo de
-    // dominio la separa en dos columnas según el tipo (dominio/modelo-clases.md):
-    // Calle/Entrada/Salida/Rampa orientan su circulación ("direccion"), Plaza/
-    // ZonaBicicletasMotos orientan su lado de acceso ("cara_acceso").
     private boolean usaColumnaDireccion(TipoPieza tipo) {
         return tipo == TipoPieza.CALLE || tipo == TipoPieza.ENTRADA || tipo == TipoPieza.SALIDA
                 || tipo == TipoPieza.RAMPA;
     }
 
-    // contratos/api-contract.md, sección 1: un proyecto de otro usuario responde
-    // 404, no 403, para no confirmar que existe.
     private Proyecto obtenerProyectoDelUsuario(Long usuarioId, Long proyectoId) {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new NegocioException(HttpStatus.NOT_FOUND, "PROYECTO_NO_ENCONTRADO", "Proyecto no encontrado"));
 
+        // 404 y no 403, para no confirmar que el proyecto existe
         if (!proyecto.getUsuarioId().equals(usuarioId)) {
             throw new NegocioException(HttpStatus.NOT_FOUND, "PROYECTO_NO_ENCONTRADO", "Proyecto no encontrado");
         }

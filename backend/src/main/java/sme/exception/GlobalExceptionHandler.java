@@ -7,7 +7,6 @@ import sme.dto.ErrorResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(NegocioException.class)
     public ResponseEntity<ErrorResponse> manejarNegocio(NegocioException ex) {
         return ResponseEntity.status(ex.getStatus())

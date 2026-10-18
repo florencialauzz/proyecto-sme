@@ -5,12 +5,6 @@ using UnityEngine.UI;
 
 namespace Sme.Grid
 {
-    // Menú contextual genérico de clic derecho: una lista vertical de
-    // botones con texto, cada uno con su propia acción. Antes había un
-    // MenuContextualPlaza y un MenuContextualCalle casi idénticos — la
-    // diferencia entre piezas está en QUÉ opciones arma cada una
-    // (PiezaView/PiezaSimpleView deciden eso), no en cómo se arma el menú
-    // en sí, así que ese armado de GameObjects se unificó acá.
     public static class MenuContextual
     {
         private const float Ancho = 260f;
@@ -22,7 +16,6 @@ namespace Sme.Grid
             public readonly string Texto;
             public readonly System.Action Accion;
 
-            // Las opciones que borran algo (Eliminar) van en rojo.
             public readonly bool EsDestructiva;
 
             public Opcion(string texto, System.Action accion, bool esDestructiva = false)
@@ -45,23 +38,13 @@ namespace Sme.Grid
             fondo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
             fondo.GetComponent<Button>().onClick.AddListener(() => Object.Destroy(fondo));
 
-            // Cada pieza dibuja su Canvas propio con sortingOrder 1
-            // (PiezaView.Awake / PiezaSimpleView.Awake) para quedar por
-            // encima de las celdas, y la marca roja de RF-20 usa 2
-            // (CeldaView.MostrarAdvertencia) — este menú necesita un
-            // sortingOrder más alto todavía para no quedar tapado por nada.
             Canvas canvasMenu = fondo.GetComponent<Canvas>();
             canvasMenu.overrideSorting = true;
             canvasMenu.sortingOrder = 10;
 
-            // fondoRect cubre el mismo rectángulo que canvasRaiz, así que un
-            // punto de pantalla convertido a coordenadas locales de
-            // canvasRaiz sirve directo como anchoredPosition dentro de fondo.
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvasRaiz.transform as RectTransform, posicionPantalla, canvasRaiz.worldCamera, out Vector2 posicionLocal);
 
-            // La tarjeta oscura que contiene las opciones, apiladas hacia
-            // abajo desde el punto de clic en el orden en que se pasaron.
             GameObject tarjeta = new GameObject("TarjetaMenu", typeof(RectTransform), typeof(Image), typeof(Shadow));
             tarjeta.transform.SetParent(fondo.transform, false);
             RectTransform tarjetaRect = tarjeta.GetComponent<RectTransform>();
@@ -96,8 +79,6 @@ namespace Sme.Grid
 
                 texto.color = opcion.EsDestructiva ? Tema.Hex("#FF7A90") : Color.white;
 
-                // Fondo blanco transparente: al pasar el puntero se tiñe a un
-                // blanco tenue sobre la tarjeta oscura.
                 Image imagenBoton = boton.GetComponent<Image>();
                 imagenBoton.sprite = Tema.Redondeado(8);
                 imagenBoton.type = Image.Type.Sliced;

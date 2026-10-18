@@ -10,20 +10,12 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // Controlador de la escena Editor: mensajes compartidos (RF-13, ver
-    // MensajesEditor), guardar proyecto (RF-21) y ejecutar la simulación
-    // (RF-26), que deja la escena en modo reproducción (ModoReproduccion).
     public class EditorScreen : MonoBehaviour
     {
         private const float DuracionMensajeSegundos = 2.5f;
 
-        // Los errores (colocación rechazada, guardado fallido) se muestran en
-        // un aviso rojo y más tiempo que los avisos normales ("Proyecto
-        // guardado.", en verde), para que no pasen desapercibidos.
         private const float DuracionErrorSegundos = 4f;
 
-        // Aviso flotante abajo de la grilla: fondo de color, ícono y texto.
-        // Lo que se prende y apaga es el fondo, que contiene a los otros dos.
         [SerializeField] private Image fondoMensaje;
         [SerializeField] private TMP_Text iconoMensaje;
         [SerializeField] private TMP_Text textoMensaje;
@@ -36,27 +28,17 @@ namespace Sme.UI
         [SerializeField] private UnityEvent alSalir;
         [SerializeField] private UnityEvent alIrAConfiguracion;
 
-        // "¿Guardar los cambios?": se abre al ir a Inicio o a Configuración
-        // si el diseño cambió desde el último guardado (las dos pantallas
-        // vuelven a cargar el Editor desde lo guardado, así que lo que no se
-        // guardó se pierde).
         [SerializeField] private GameObject panelCambiosSinGuardar;
         [SerializeField] private Button botonGuardarYSalir;
         [SerializeField] private Button botonSalirSinGuardar;
         [SerializeField] private Button botonCancelarSalida;
 
-        // Animación: después de simular se entra a la reproducción, que es
-        // la que lleva a Resultados.
         [SerializeField] private ModoReproduccion modoReproduccion;
 
         private Coroutine ocultamientoEnCurso;
 
-        // Mientras se guarda y se simula, el botón de simular queda
-        // deshabilitado aunque el diseño sea válido, para no mandar dos
-        // simulaciones seguidas con un doble clic.
         private bool simulacionEnCurso;
 
-        // A dónde se va después de responder "¿Guardar los cambios?".
         private Action salidaPendiente;
 
         private void Awake()
@@ -72,10 +54,6 @@ namespace Sme.UI
             botonCancelarSalida.onClick.AddListener(CerrarCambiosSinGuardar);
             panelCambiosSinGuardar.SetActive(false);
 
-            // RF-20: el botón de simular solo se habilita con el diseño
-            // válido. La primera validación corre en el LateUpdate de
-            // GrillaGenerador, después de este Awake, así que el botón
-            // arranca deshabilitado y se actualiza con el evento.
             ValidadorDiseno.AlValidar += AlValidar;
             ActualizarBotonSimular();
         }
@@ -126,15 +104,10 @@ namespace Sme.UI
                 alFallar: null);
         }
 
-        // RF-21: lo usan el botón Guardar y el de Simular — la simulación
-        // corre sobre la grilla guardada en el backend, no sobre la que está
-        // en pantalla, así que antes de simular hay que guardar.
         private void GuardarGrilla(Action alGuardar, Action alFallar)
         {
             botonGuardar.interactable = false;
 
-            // cantidadPisos baja si se eliminó un piso desde el editor (RF-18)
-            // — se guarda junto con las piezas, no antes.
             var request = new GuardarGrillaRequest
             {
                 cantidadPisos = GrillaGenerador.CantidadPisos,
@@ -159,8 +132,6 @@ namespace Sme.UI
                 });
         }
 
-        // --- RF-26: ejecutar simulación ---
-
         private void AlValidar(ValidadorDiseno.Resultado resultado)
         {
             ActualizarBotonSimular();
@@ -173,9 +144,6 @@ namespace Sme.UI
             botonSimular.interactable = disenoValido && !simulacionEnCurso;
         }
 
-        // Guarda la grilla y, si sale bien, pide la simulación. Los errores
-        // del backend (configuración incompleta, diseño inválido) se muestran
-        // igual que los del guardado.
         private void Simular()
         {
             simulacionEnCurso = true;
@@ -186,8 +154,6 @@ namespace Sme.UI
                 alFallar: TerminarSimulacionSinResultado);
         }
 
-        // simulacionEnCurso queda en true al salir bien: el Editor pasa a la
-        // reproducción y el botón de simular ya no se vuelve a mostrar.
         private void EjecutarSimulacion()
         {
             ApiClient.Post<EjecutarSimulacionRequest, EjecutarSimulacionConReproduccionResponse>(
@@ -206,10 +172,6 @@ namespace Sme.UI
                 });
         }
 
-        // Los indicadores de la respuesta, sin reproduccion: es lo que
-        // muestra Resultados y lo que se reenvía a /guardar, que no lleva la
-        // reproducción (contratos/api-contract.md). Copia campo por campo
-        // porque JsonUtility no deja omitir un campo al serializar.
         private static EjecutarSimulacionResponse SoloIndicadores(EjecutarSimulacionConReproduccionResponse respuesta)
         {
             return new EjecutarSimulacionResponse
@@ -231,16 +193,11 @@ namespace Sme.UI
             ActualizarBotonSimular();
         }
 
-        // El botón no guarda solo: si hay cambios sin guardar, pregunta
-        // (panelCambiosSinGuardar) y el usuario decide.
         private void Salir()
         {
             SalirPreguntandoSiHayCambios(() => alSalir?.Invoke());
         }
 
-        // RF-08 a RF-11: permite volver a la pantalla de Configuración para
-        // cambiar frecuencia/permanencia/horario y simular otro escenario sobre
-        // el mismo proyecto ya modelado.
         private void IrAConfiguracion()
         {
             SalirPreguntandoSiHayCambios(() =>
@@ -250,10 +207,6 @@ namespace Sme.UI
             });
         }
 
-        // --- Cambios sin guardar ---
-
-        // En la reproducción la grilla es de solo lectura y se guardó antes
-        // de simular: nunca hay cambios.
         private void SalirPreguntandoSiHayCambios(Action salir)
         {
             if (!GrillaGenerador.HayCambiosSinGuardar())
@@ -267,8 +220,6 @@ namespace Sme.UI
             panelCambiosSinGuardar.SetActive(true);
         }
 
-        // Si el guardado falla, el modal se cierra y el error se ve en el
-        // aviso del Editor; el usuario sigue en el Editor con sus cambios.
         private void GuardarYSalir()
         {
             botonGuardarYSalir.interactable = false;

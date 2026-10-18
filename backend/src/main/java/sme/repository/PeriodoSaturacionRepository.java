@@ -6,6 +6,5 @@ import sme.entity.PeriodoSaturacion;
 import java.util.List;
 
 public interface PeriodoSaturacionRepository extends JpaRepository<PeriodoSaturacion, Long> {
-
     List<PeriodoSaturacion> findByResultadoSimulacionIdOrderByInicioAsc(Long resultadoSimulacionId);
 }

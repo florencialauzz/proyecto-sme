@@ -28,12 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-// Tests de la respuesta de /simulacion/ejecutar sin base de datos: los
-// repositorios son mocks que devuelven un proyecto y sus piezas armados a
-// mano. El cálculo en sí lo cubre MotorSimulacionTest; acá se verifica el
-// armado de la respuesta (animacion/plan.md, etapa 3).
 class SimulacionServiceTest {
-
     private static final long USUARIO_ID = 1L;
     private static final long PROYECTO_ID = 10L;
 
@@ -48,9 +43,6 @@ class SimulacionServiceTest {
         return pieza;
     }
 
-    // Pasillo recto en la fila 7 (Entrada en la columna 0, Salida en la 14)
-    // con 3 plazas arriba, de 8:00 a 12:00 a 30/h con 2 horas de
-    // permanencia: hay rechazos.
     private static SimulacionService servicioConPasilloDeTresPlazas() {
         Proyecto proyecto = new Proyecto();
         proyecto.setId(PROYECTO_ID);
@@ -98,8 +90,6 @@ class SimulacionServiceTest {
         EjecutarSimulacionResponse respuesta = servicio.ejecutar(USUARIO_ID, PROYECTO_ID);
         ReproduccionResponse reproduccion = respuesta.reproduccion();
 
-        // Plazas en el orden del motor, con sus caminos desde la Entrada
-        // (0) y hasta la Salida (14).
         assertEquals(3, reproduccion.plazas().size());
         assertEquals(List.of(2, 6, 10), reproduccion.plazas().stream().map(PlazaReproduccionResponse::columna).toList());
         for (PlazaReproduccionResponse plaza : reproduccion.plazas()) {
@@ -110,7 +100,6 @@ class SimulacionServiceTest {
         }
         assertEquals(2, reproduccion.indicePlazaRecorridoRechazados());
 
-        // Los eventos son de la misma corrida que los indicadores.
         int rechazados = 0;
         for (EventoVehiculoResponse evento : reproduccion.eventos()) {
             if (evento.indicePlaza() == -1) rechazados++;

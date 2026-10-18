@@ -15,13 +15,11 @@ import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-// Espejo de contratos/esquema-bd.md.
 @Entity
 @Table(name = "pieza", uniqueConstraints = {
         @UniqueConstraint(name = "uq_pieza_celda", columnNames = {"proyecto_id", "piso", "fila", "columna"})
 })
 public class Pieza {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -29,10 +27,7 @@ public class Pieza {
     @Column(name = "proyecto_id", nullable = false)
     private Long proyectoId;
 
-    // Mapea la misma columna que proyectoId, solo de lectura: existe unicamente
-    // para que Hibernate genere la foreign key con ON DELETE CASCADE
-    // (ver contratos/esquema-bd.md). Las lecturas/escrituras de la relacion
-    // siguen haciendose a traves de proyectoId, no de este campo.
+    // Solo para que Hibernate cree la FK con ON DELETE CASCADE
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "proyecto_id", insertable = false, updatable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
@@ -51,10 +46,6 @@ public class Pieza {
     @Column(nullable = false, length = 20)
     private TipoPieza tipo;
 
-    // Cara de acceso (Plaza, ZonaBicicletasMotos) y dirección (Calle, Entrada,
-    // Salida) son columnas separadas por claridad semántica del modelo de
-    // dominio (dominio/modelo-clases.md), aunque comparten el mismo enum — el
-    // service decide cuál corresponde según el tipo de pieza.
     @Enumerated(EnumType.STRING)
     @Column(name = "cara_acceso", length = 10)
     private Direccion caraAcceso;
@@ -69,9 +60,6 @@ public class Pieza {
     @Column(name = "es_cruce_peatonal")
     private Boolean esCrucePeatonal;
 
-    // Solo Rampa (RF-18). Cada una de sus dos filas (una por piso) guarda el
-    // mismo sentido — el par se deriva de la posición, no se guarda
-    // (editor/catalogo-piezas.md).
     @Enumerated(EnumType.STRING)
     @Column(name = "sentido_vertical", length = 10)
     private SentidoVertical sentidoVertical;

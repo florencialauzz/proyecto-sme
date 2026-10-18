@@ -9,21 +9,12 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-06: Cerrar sesión, RF-07: Ingresar nombre de proyecto, RF-22: Listar
-    // proyectos, RF-24: ver los resultados guardados de un proyecto, RF-25:
-    // Comparar resultados de proyectos, y duplicar, borrar o cambiar el
-    // nombre de un proyecto (sin RF propio todavía, ver pendientes.md). Requiere que los campos de abajo
-    // estén asignados en el Inspector, sobre el Canvas de la pantalla de
-    // inicio (a la que se llega después de iniciar sesión).
     public class InicioScreen : MonoBehaviour
     {
-        // RF-25 necesita dos proyectos seleccionados a la vez.
         private const int MaximoSeleccionados = 2;
 
         [SerializeField] private Button botonCerrarSesion;
 
-        // Tarjeta de perfil de la barra lateral: nombre y la inicial en el
-        // círculo del avatar.
         [SerializeField] private TMP_Text textoNombreUsuario;
         [SerializeField] private TMP_Text textoInicialUsuario;
 
@@ -41,14 +32,11 @@ namespace Sme.UI
         [SerializeField] private Button botonDuplicar;
         [SerializeField] private Button botonEliminar;
 
-        // Confirmación antes de borrar: no se puede deshacer.
         [SerializeField] private GameObject panelConfirmarEliminar;
         [SerializeField] private TMP_Text textoConfirmarEliminar;
         [SerializeField] private Button botonConfirmarEliminar;
         [SerializeField] private Button botonCancelarEliminar;
 
-        // Cambiar el nombre (clic derecho sobre un proyecto, sin RF propio
-        // todavía, ver pendientes.md): modal con el nombre nuevo.
         [SerializeField] private GameObject panelRenombrar;
         [SerializeField] private TMP_InputField campoNuevoNombre;
         [SerializeField] private Button botonConfirmarRenombrar;
@@ -60,14 +48,10 @@ namespace Sme.UI
         [SerializeField] private UnityEvent alAbrirProyectoConExito;
         [SerializeField] private UnityEvent alVerResultadosConExito;
 
-        // En el orden en que se tildaron: si se tilda un tercero, se destilda
-        // el más viejo.
         private readonly List<long> proyectosSeleccionados = new List<long>();
         private readonly Dictionary<long, Toggle> togglesPorProyecto = new Dictionary<long, Toggle>();
         private readonly Dictionary<long, string> nombresPorProyecto = new Dictionary<long, string>();
 
-        // El proyecto a renombrar se guarda aparte de la selección: el clic
-        // derecho no tilda ni destilda la fila.
         private long proyectoARenombrar;
 
         private void Awake()
@@ -97,17 +81,11 @@ namespace Sme.UI
             textoInicialUsuario.text = nombre.Substring(0, 1).ToUpperInvariant();
         }
 
-        // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
-        // alcanza para limpiar un error que quedó de una visita anterior —
-        // OnEnable corre cada vez que el panel se reactiva.
         private void OnEnable()
         {
             OcultarError();
         }
 
-        // RF-22: la lista se trae al entrar a la pantalla, y de nuevo después
-        // de duplicar o borrar un proyecto. Un proyecto recién creado navega
-        // directo al Editor, no vuelve a esta pantalla.
         private void CargarProyectos()
         {
             ApiClient.ListarProyectos(
@@ -129,7 +107,6 @@ namespace Sme.UI
                         GameObject item = Instantiate(prefabItemProyecto, contenedorProyectos);
                         item.GetComponentInChildren<TMP_Text>().text = proyecto.nombre;
 
-                        // Sin ToggleGroup: se pueden tildar hasta dos (RF-25).
                         Toggle toggle = item.GetComponent<Toggle>();
                         toggle.isOn = false;
 
@@ -138,7 +115,6 @@ namespace Sme.UI
                         nombresPorProyecto[proyectoId] = proyecto.nombre;
                         toggle.onValueChanged.AddListener(seleccionado => SeleccionarProyecto(seleccionado, proyectoId));
 
-                        // La fila entera se tiñe al seleccionarla, no solo la casilla.
                         Image fondoFila = item.GetComponent<Image>();
                         toggle.onValueChanged.AddListener(seleccionado => PintarFila(fondoFila, seleccionado));
 
@@ -156,8 +132,6 @@ namespace Sme.UI
                 proyectosSeleccionados.Add(proyectoId);
                 if (proyectosSeleccionados.Count > MaximoSeleccionados)
                 {
-                    // Destildarlo dispara de nuevo este método con
-                    // seleccionado = false, que lo saca de la lista.
                     long masViejo = proyectosSeleccionados[0];
                     togglesPorProyecto[masViejo].isOn = false;
                 }
@@ -176,8 +150,6 @@ namespace Sme.UI
             fondoFila.color = seleccionada ? Tema.PrimarioSuave : Tema.Superficie;
         }
 
-        // Abrir, Ver resultados, Duplicar y Eliminar actúan sobre un solo
-        // proyecto; Comparar, sobre dos.
         private void ActualizarBotonesSeleccion()
         {
             bool unoSeleccionado = proyectosSeleccionados.Count == 1;
@@ -196,9 +168,6 @@ namespace Sme.UI
             AbrirProyecto(proyectosSeleccionados[0]);
         }
 
-        // Abrir un proyecto guardado para seguir editándolo: trae la grilla
-        // completa (GET /proyectos/{id}) y la deja lista para que GrillaGenerador
-        // la reconstruya al entrar a la escena Editor.
         private void AbrirProyecto(long proyectoId)
         {
             OcultarError();
@@ -218,9 +187,6 @@ namespace Sme.UI
                 });
         }
 
-        // RF-24: "el usuario accede a la pantalla de resultados del proyecto".
-        // Trae el proyecto (la pantalla necesita el horario y las plazas para
-        // la curva) y después sus resultados guardados.
         private void VerResultadosSeleccionado()
         {
             if (proyectosSeleccionados.Count != 1) return;
@@ -254,9 +220,6 @@ namespace Sme.UI
                 });
         }
 
-        // RF-25: trae los resultados guardados de los dos proyectos, uno
-        // después del otro, y los muestra en los modales. Si alguno no tiene
-        // resultados, Flujo Alternativo A1: aviso y se vuelve a la lista.
         private void CompararSeleccionados()
         {
             if (proyectosSeleccionados.Count != 2) return;
@@ -298,9 +261,6 @@ namespace Sme.UI
             }
         }
 
-        // Duplicar: el backend copia la configuración y la grilla (no los
-        // resultados) con el nombre "<nombre> (copia)". La copia aparece al
-        // recargar la lista.
         private void DuplicarSeleccionado()
         {
             if (proyectosSeleccionados.Count != 1) return;
@@ -319,8 +279,6 @@ namespace Sme.UI
                     MostrarError(mensaje);
                 });
         }
-
-        // --- Cambiar nombre ---
 
         private void MostrarMenuProyecto(Transform fila, Vector2 posicionPantalla, long proyectoId)
         {
@@ -344,8 +302,6 @@ namespace Sme.UI
             panelRenombrar.SetActive(false);
         }
 
-        // Nombre vacío o repetido los rechaza el backend (mismas reglas que
-        // RF-07), con el mensaje listo para mostrar en el modal.
         private void Renombrar()
         {
             avisoErrorRenombrar.Ocultar();
@@ -365,8 +321,6 @@ namespace Sme.UI
                     avisoErrorRenombrar.Mostrar(mensaje);
                 });
         }
-
-        // --- Eliminar ---
 
         private void PedirConfirmacionEliminar()
         {
@@ -445,8 +399,6 @@ namespace Sme.UI
                 alTenerExito: respuesta =>
                 {
                     botonCrearProyecto.interactable = true;
-                    // RF-12: la escena Editor lee estos datos desde ProyectoManager
-                    // para generar la grilla (GrillaGenerador.Start).
                     ProyectoManager.GuardarProyecto(
                         respuesta.proyectoId,
                         respuesta.filasGrilla,
@@ -456,8 +408,6 @@ namespace Sme.UI
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    // A1 (nombre vacío) y A2 (nombre repetido) llegan acá según el
-                    // "codigo" del error — el mensaje ya viene listo para mostrar.
                     botonCrearProyecto.interactable = true;
                     MostrarError(mensaje);
                 });

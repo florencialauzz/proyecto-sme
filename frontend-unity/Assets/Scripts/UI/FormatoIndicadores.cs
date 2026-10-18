@@ -4,18 +4,9 @@ using Sme.Models;
 
 namespace Sme.UI
 {
-    // Arma los textos de los indicadores de una simulación. Lo usan la
-    // pantalla de resultados (RF-24) y los modales de comparación (RF-25),
-    // así los dos muestran los mismos números con el mismo formato.
     public static class FormatoIndicadores
     {
         private const int MinutosPorHora = 60;
-
-        // --- Tarjetas de la pantalla de Resultados (RF-24) ---
-        // Cada indicador se muestra como un número grande (Valor...) con una
-        // línea de detalle abajo (Detalle...). La etiqueta del indicador está
-        // fija en la escena. RF-15 eficiencia, RF-29 demanda, RF-28
-        // saturación, RF-30 puntuación.
 
         public static string ValorEficiencia(EjecutarSimulacionResponse resultado)
         {
@@ -50,10 +41,6 @@ namespace Sme.UI
             return $"{MinutosSaturados(periodos)} min";
         }
 
-        // Resumen corto para la tarjeta: con un solo intervalo, sus horas;
-        // con varios, cuántos son. La lista completa no entra en la tarjeta
-        // (con muchos intervalos la ensanchaba y corría a las otras): va
-        // debajo del gráfico (PeriodosSaturacion).
         public static string DetalleSaturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
         {
             PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
@@ -69,8 +56,6 @@ namespace Sme.UI
             return $"En {periodos.Length} intervalos (detalle debajo del gráfico)";
         }
 
-        // RF-28: todos los intervalos en horas del día, seguidos y separados
-        // por coma. Vacío si no hubo saturación.
         public static string PeriodosSaturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
         {
             PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
@@ -91,9 +76,6 @@ namespace Sme.UI
             return resultado.calificacionTexto;
         }
 
-        // "de 10:00 a 11:30, de 15:00 a 15:20". Un intervalo [inicio, fin]
-        // incluye el minuto fin entero, así que la hora de cierre es la del
-        // minuto siguiente.
         private static string IntervalosSaturacion(PeriodoSaturacionDto[] periodos, string horaInicioSimulacion)
         {
             int minutoInicioDelDia = MinutoDelDia(horaInicioSimulacion);
@@ -121,11 +103,6 @@ namespace Sme.UI
             return minutosSaturados;
         }
 
-        // RF-25: todos los indicadores juntos, para un modal de comparación.
-        // Etiquetas cortas a propósito: los modales son angostos (van dos uno
-        // al lado del otro). La saturación va resumida en intervalos y
-        // minutos totales, sin las horas (GET /simulacion no trae el horario
-        // de cada proyecto, y para comparar alcanza con cuánto tiempo saturó).
         public static string Resumen(EjecutarSimulacionResponse resultado)
         {
             return $"Eficiencia: {Porcentaje(resultado.eficienciaEspacial)}% ({resultado.calificacionEficiencia})\n"
@@ -153,9 +130,6 @@ namespace Sme.UI
             return valor.ToString("0.00", CultureInfo.InvariantCulture);
         }
 
-        // Las horas llegan como "HH:mm" o "HH:mm:ss" (mismo criterio que GraficoCurva).
-        // Públicas porque el reloj de la reproducción (ModoReproduccion) muestra
-        // la hora simulada con el mismo formato.
         public static int MinutoDelDia(string hora)
         {
             if (string.IsNullOrEmpty(hora)) return 0;

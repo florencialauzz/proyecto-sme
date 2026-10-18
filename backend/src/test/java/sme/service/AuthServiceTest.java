@@ -19,10 +19,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-// Campos obligatorios del registro (RF-01) y de la contraseña nueva (RF-04),
-// sin base de datos: el repositorio es un mock.
 class AuthServiceTest {
-
     private final UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final AuthService authService = new AuthService(usuarioRepository, passwordEncoder, mock(JwtService.class));

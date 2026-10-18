@@ -21,7 +21,6 @@ import sme.security.JwtService;
 
 @Service
 public class AuthService {
-
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -32,8 +31,6 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    // RF-01: valida que estén todos los campos (punto 3 del flujo principal),
-    // duplicado (A1) y coincidencia de contraseñas (A2) antes de registrar.
     public RegistroResponse registrar(RegistroRequest request) {
         if (estaVacio(request.nombreUsuario()) || estaVacio(request.contrasena())
                 || estaVacio(request.confirmacionContrasena()) || estaVacio(request.preguntaSeguridad())
@@ -59,8 +56,6 @@ public class AuthService {
         return new RegistroResponse(usuario.getId());
     }
 
-    // RF-02: distingue usuario inexistente (A1) de contraseña incorrecta (A2), tal
-    // como lo pide el caso de uso expandido.
     public LoginResponse iniciarSesion(LoginRequest request) {
         Usuario usuario = usuarioRepository.findByNombreUsuario(request.nombreUsuario())
                 .orElseThrow(() -> new NegocioException(HttpStatus.UNAUTHORIZED, "USUARIO_INEXISTENTE",
@@ -75,15 +70,11 @@ public class AuthService {
         return new LoginResponse(token, usuario.getId());
     }
 
-    // RF-03, punto 4-5: valida que el usuario exista (A1) y devuelve su pregunta
-    // de seguridad para mostrarla antes de pedir la respuesta.
     public PreguntaSeguridadResponse obtenerPreguntaSeguridad(String nombreUsuario) {
         Usuario usuario = buscarPorNombreUsuarioOFallar(nombreUsuario);
         return new PreguntaSeguridadResponse(usuario.getPreguntaSeguridad());
     }
 
-    // RF-03: valida respuesta de seguridad (A2) y coincidencia de la nueva
-    // contraseña con su confirmación (A3) antes de actualizar.
     public RecuperarContrasenaResponse recuperarContrasena(RecuperarContrasenaRequest request) {
         Usuario usuario = buscarPorNombreUsuarioOFallar(request.nombreUsuario());
 
@@ -105,8 +96,6 @@ public class AuthService {
         return new RecuperarContrasenaResponse(true);
     }
 
-    // RF-04: valida contraseña actual (A1) y coincidencia de la nueva contraseña
-    // con su confirmación (A2) antes de actualizar.
     public CambiarContrasenaResponse cambiarContrasena(Long usuarioId, CambiarContrasenaRequest request) {
         Usuario usuario = buscarPorIdOFallar(usuarioId);
 
@@ -128,8 +117,6 @@ public class AuthService {
         return new CambiarContrasenaResponse(true);
     }
 
-    // RF-05: valida contraseña (A1) antes de eliminar la cuenta. El borrado en
-    // cascada de proyectos/piezas/resultados lo resuelve la BD (esquema-bd.md).
     public EliminarCuentaResponse eliminarCuenta(Long usuarioId, EliminarCuentaRequest request) {
         Usuario usuario = buscarPorIdOFallar(usuarioId);
 
@@ -142,7 +129,6 @@ public class AuthService {
         return new EliminarCuentaResponse(true);
     }
 
-    // Un campo con solo espacios cuenta como vacío.
     private static boolean estaVacio(String valor) {
         return valor == null || valor.isBlank();
     }

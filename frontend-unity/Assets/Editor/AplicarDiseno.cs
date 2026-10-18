@@ -13,28 +13,12 @@ using UnityEngine.TextCore.LowLevel;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
-// Herramienta de editor que armó el diseño visual de las cinco escenas
-// (menú SME > Aplicar diseño a todas las escenas). Reutiliza los objetos que
-// ya existían — mismos GameObjects, mismas referencias en el Inspector y
-// mismos eventos — y solo cambia su estilo, su posición y a qué contenedor
-// pertenecen; lo nuevo (barras, tarjetas, títulos, recuadros de error) lo
-// crea al lado.
-//
-// Los colores, fuentes y formas salen de Sme.UI.Tema, igual que la UI que se
-// arma por código, así todo el sistema se ve igual.
-//
-// Cuándo correrla: después de mergear cambios de escena de otra rama que
-// todavía tengan el diseño viejo, para volver a aplicarlo sobre ellas. Pisa
-// los ajustes visuales hechos a mano en el Inspector sobre los objetos que
-// toca, así que si se retoca algo a mano conviene retocarlo también acá.
 public static class AplicarDiseno
 {
     private const string CarpetaSprites = "Assets/Resources/UI";
     private const string CarpetaFuentes = "Assets/Resources/Fuentes";
     private const string CarpetaTtf = "Assets/Fuentes";
 
-    // Lo que se ve en pantalla en una resolución de referencia de 1920x1080;
-    // el CanvasScaler lo escala al tamaño real de la ventana.
     private static readonly Vector2 ResolucionReferencia = new Vector2(1920f, 1080f);
 
     private const float AltoBarraSuperior = 76f;
@@ -70,7 +54,6 @@ public static class AplicarDiseno
         Camera camara = escena.GetRootGameObjects().Select(go => go.GetComponent<Camera>()).First(c => c != null);
         camara.backgroundColor = Tema.Fondo;
 
-        // Fondo de toda la pantalla, detrás de todo lo demás.
         GameObject fondo = Hijo(canvas.transform, "Fondo", typeof(Image));
         fondo.transform.SetAsFirstSibling();
         Tema.Estirar(Rect(fondo));
@@ -80,7 +63,6 @@ public static class AplicarDiseno
 
         disenar(canvas.transform);
 
-        // Cualquier texto que haya quedado con la fuente vieja pasa a Inter.
         foreach (TMP_Text texto in canvas.GetComponentsInChildren<TMP_Text>(true))
         {
             if (texto.font == null || texto.font.name.StartsWith("LiberationSans"))
@@ -92,10 +74,6 @@ public static class AplicarDiseno
         EditorSceneManager.MarkSceneDirty(escena);
         EditorSceneManager.SaveScene(escena);
     }
-
-    // =====================================================================
-    // Auth: portada a la izquierda, formularios a la derecha.
-    // =====================================================================
 
     private static void DisenarAuth(Transform canvas)
     {
@@ -124,7 +102,6 @@ public static class AplicarDiseno
             Vertical(panel.gameObject, 0, 0, 14f, TextAnchor.MiddleCenter);
         }
 
-        // --- Iniciar sesión ---
         Transform tituloLogin = Titulo(login, "Titulo", "Iniciá sesión", 38f);
         Transform subLogin = Parrafo(login, "Subtitulo", "Ingresá con tu usuario para seguir trabajando en tus proyectos.");
         Transform grupoUsuario = Grupo(login, "GrupoUsuario", "Nombre de usuario", Buscar(login, "CampoNombreUsuario"), "Tu nombre de usuario");
@@ -141,7 +118,6 @@ public static class AplicarDiseno
         Ordenar(login, tituloLogin, subLogin, Espacio(login, "Espacio", 10f), grupoUsuario, grupoContrasena,
             olvido, avisoLogin, iniciar, separadorLogin, irARegistro);
 
-        // --- Registro ---
         Transform tituloRegistro = Titulo(registro, "Titulo", "Creá tu cuenta", 38f);
         Transform subRegistro = Parrafo(registro, "Subtitulo", "Registrate para empezar a diseñar y simular estacionamientos.");
         Transform gUsuario = Grupo(registro, "GrupoUsuario", "Nombre de usuario", Buscar(registro, "CampoNombreUsuario"), "Elegí un nombre de usuario");
@@ -160,7 +136,6 @@ public static class AplicarDiseno
             gPregunta, gRespuesta, avisoRegistro, registrar, separadorRegistro, irALogin);
         Vertical(registro.gameObject, 0, 0, 12f, TextAnchor.MiddleCenter);
 
-        // --- Recuperar contraseña: dos pasos (PanelUsuario y PanelRespuesta) ---
         Transform tituloRecuperar = Titulo(recuperar, "Titulo", "Recuperá tu contraseña", 38f);
         Transform subRecuperar = Parrafo(recuperar, "Subtitulo", "Respondé tu pregunta de seguridad para elegir una contraseña nueva.");
 
@@ -185,9 +160,6 @@ public static class AplicarDiseno
 
         Transform avisoRecuperar = CrearAvisoError(recuperar, "PanelRecuperarContrasena", recuperar.GetComponent<RecuperarContrasenaScreen>());
 
-        // El botón Volver estaba dentro del primer paso y apagaba ese paso en
-        // vez del panel entero (quedaba el panel prendido detrás del login).
-        // Ahora está abajo de los dos pasos y apaga el panel.
         Transform volver = Buscar(pasoUsuario, "BotonVolver");
         volver.SetParent(recuperar, false);
         Boton(volver, Tema.EstiloBoton.Fantasma, "←  Volver a iniciar sesión", 44f);
@@ -198,8 +170,6 @@ public static class AplicarDiseno
         AjustarAlto(pasoRespuesta, -1f);
     }
 
-    // La portada: degradado de marca, el nombre del sistema y una vista
-    // previa de un estacionamiento armada con los mismos sprites del editor.
     private static void CrearPortada(Transform canvas)
     {
         GameObject portada = Hijo(canvas, "Portada", typeof(Image));
@@ -224,13 +194,11 @@ public static class AplicarDiseno
         imagenPuntos.color = new Color(1f, 1f, 1f, 0.12f);
         imagenPuntos.raycastTarget = false;
 
-        // Marca arriba a la izquierda.
         Transform marca = Marca(portada.transform, true);
         Anclar(Rect(marca), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(72f, -56f), new Vector2(320f, 48f));
 
         GameObject contenido = Hijo(portada.transform, "Contenido");
         Anclar(Rect(contenido), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(72f, 120f), new Vector2(820f, 520f), new Vector2(0f, 0.5f));
-        // Sin forzar el ancho: la etiqueta de arriba es una píldora angosta.
         Vertical(contenido, 0, 0, 22f, TextAnchor.MiddleLeft).childForceExpandWidth = false;
 
         Transform etiqueta = Pildora(contenido.transform, "Etiqueta", "PROYECTO INTEGRADOR  ·  UDE",
@@ -272,8 +240,6 @@ public static class AplicarDiseno
         Anclar(pie.rectTransform, Vector2.zero, Vector2.zero, new Vector2(72f, 40f), new Vector2(800f, 24f));
     }
 
-    // Una "tarjeta de vidrio" con una fila de plazas, algunas ocupadas, y la
-    // calle de acceso: muestra de qué se trata el sistema sin palabras.
     private static void VistaPreviaEstacionamiento(Transform portada)
     {
         const float celda = 58f;
@@ -311,8 +277,6 @@ public static class AplicarDiseno
                 Anclar(imagenAuto.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 0f), new Vector2(celda * 0.62f, celda * 1.5f), new Vector2(0.5f, 0.5f));
             }
 
-            // Fila de la calle: entrada a la izquierda, salida a la derecha,
-            // rotadas para que el tránsito corra horizontal.
             Sprite spriteCalle = i == 0 ? entrada : i == columnas - 1 ? salida : calle;
             Image imagenCalle = ImagenEn(tarjeta.transform, $"Calle{i}", spriteCalle);
             Anclar(imagenCalle.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(x + celda / 2f, -24f - celda * 2.5f), new Vector2(celda, celda), new Vector2(0.5f, 0.5f));
@@ -320,8 +284,6 @@ public static class AplicarDiseno
         }
     }
 
-    // Recuadro destacado con la pregunta de seguridad del usuario (paso 2 de
-    // recuperar contraseña).
     private static Transform TarjetaPreguntaSeguridad(Transform padre, Transform textoPregunta)
     {
         GameObject tarjeta = Hijo(padre, "TarjetaPregunta", typeof(Image));
@@ -338,10 +300,6 @@ public static class AplicarDiseno
         return tarjeta.transform;
     }
 
-    // =====================================================================
-    // Inicio: barra lateral de perfil y área de proyectos.
-    // =====================================================================
-
     private const float AnchoBarraLateral = 340f;
 
     private static void DisenarInicio(Transform canvas)
@@ -351,7 +309,6 @@ public static class AplicarDiseno
         Tema.Estirar(Rect(panelInicio));
         panelInicio.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0f);
 
-        // --- Barra lateral: marca, perfil y configuración de la cuenta ---
         GameObject lateral = Hijo(panelInicio, "BarraLateral", typeof(Image));
         RectTransform lateralRect = Rect(lateral);
         lateralRect.anchorMin = Vector2.zero;
@@ -388,12 +345,9 @@ public static class AplicarDiseno
 
         Ordenar(lateral.transform, marca, Espacio(lateral.transform, "Espacio1", 20f), etiquetaPerfil, tarjetaPerfil,
             Espacio(lateral.transform, "Espacio2", 16f), etiquetaCuenta, cambiar, cerrar, relleno, etiquetaPeligro, eliminarCuenta, avisoEliminar);
-        // Los modales se abren encima de Inicio, que queda visible detrás
-        // del velo oscuro: los botones ya no apagan PanelInicio.
         QuitarSetActive(cambiar.GetComponent<Button>(), panelInicio.gameObject);
         QuitarSetActive(eliminarCuenta.GetComponent<Button>(), panelInicio.gameObject);
 
-        // --- Contenido: encabezado, nuevo proyecto y proyectos guardados ---
         GameObject contenido = Hijo(panelInicio, "Contenido");
         RectTransform contenidoRect = Rect(contenido);
         contenidoRect.anchorMin = Vector2.zero;
@@ -411,7 +365,6 @@ public static class AplicarDiseno
 
         Transform aviso = CrearAvisoError(contenido.transform, "PanelInicio", pantalla, panelInicio);
 
-        // Nuevo proyecto
         Transform tarjetaNuevo = Tarjeta(contenido.transform, "TarjetaNuevoProyecto", 28, 24, 16f);
         Transform tituloNuevo = Subtitulo(tarjetaNuevo, "Titulo", "Nuevo proyecto");
         GameObject filaNuevo = Hijo(tarjetaNuevo, "Fila");
@@ -427,7 +380,6 @@ public static class AplicarDiseno
         Ordenar(filaNuevo.transform, campoNombre, crear);
         Ordenar(tarjetaNuevo, tituloNuevo, filaNuevo.transform);
 
-        // Proyectos guardados
         Transform tarjetaLista = Tarjeta(contenido.transform, "TarjetaProyectos", 28, 24, 16f);
         Layout(tarjetaLista.gameObject).flexibleHeight = 1f;
         GameObject cabecera = Hijo(tarjetaLista, "Cabecera");
@@ -484,7 +436,6 @@ public static class AplicarDiseno
         DisenarModalRenombrar(canvas, pantalla);
     }
 
-    // Modal nuevo (no existía en la escena): cambiar el nombre de un proyecto.
     private static void DisenarModalRenombrar(Transform canvas, InicioScreen pantalla)
     {
         GameObject panel = Hijo(canvas, "PanelRenombrar", typeof(Image));
@@ -495,7 +446,6 @@ public static class AplicarDiseno
         Transform campo = NuevoCampo(tarjeta, "CampoNuevoNombre");
         Transform grupo = Grupo(tarjeta, "GrupoNombre", "Nombre del proyecto", campo, "Nombre del proyecto");
 
-        // El texto de error lo crea acá: CrearAvisoError envuelve uno existente.
         TextoEn(tarjeta, "TextoError", string.Empty, Tema.FuenteTextoFuerte, 15f, Tema.PeligroOscuro, TextAlignmentOptions.TopLeft);
         Transform aviso = CrearAvisoError(tarjeta, "PanelRenombrar", pantalla, campo: "avisoErrorRenombrar");
 
@@ -585,10 +535,6 @@ public static class AplicarDiseno
         Boton(botonEliminar, Tema.EstiloBoton.Peligro, "Eliminar cuenta", AltoBoton);
         Ordenar(tarjeta, icono, titulo, bajada, Espacio(tarjeta, "Espacio", 4f), gContrasena, aviso, Espacio(tarjeta, "Espacio2", 4f), fila);
 
-        // El botón cerraba el modal al hacer clic, antes de saber si la
-        // contraseña era correcta: un error quedaba escondido. Ahora el
-        // modal se queda abierto y EliminarCuentaScreen lleva a Auth si sale
-        // bien.
         QuitarSetActive(botonEliminar.GetComponent<Button>(), panel.gameObject);
         QuitarSetActive(botonEliminar.GetComponent<Button>(), Buscar(canvas, "PanelInicio").gameObject);
     }
@@ -653,8 +599,6 @@ public static class AplicarDiseno
             Vertical(modal.gameObject, 28, 24, 14f, TextAnchor.UpperLeft);
             Layout(modal.gameObject).flexibleWidth = 1f;
 
-            // Barrita de color arriba de cada columna: el layout estira el
-            // contenedor a todo el ancho, la barra va anclada a la izquierda.
             Transform barra = Espacio(modal, "Acento", 5f);
             GameObject linea = Hijo(barra, "Linea", typeof(Image));
             Image imagenBarra = linea.GetComponent<Image>();
@@ -682,14 +626,8 @@ public static class AplicarDiseno
 
         Ordenar(tarjeta.transform, titulo, bajada, columnas.transform, filaCerrar.transform);
 
-        // PanelComparacion.Awake lo apaga igual; apagado en la escena no
-        // tapa Inicio mientras se edita.
         panel.gameObject.SetActive(false);
     }
-
-    // =====================================================================
-    // Configuración: barra superior y formulario en una tarjeta centrada.
-    // =====================================================================
 
     private static void DisenarConfiguracion(Transform canvas)
     {
@@ -716,7 +654,6 @@ public static class AplicarDiseno
         Transform gFin = GrupoConEtiqueta(filaHorario.transform, "GrupoHoraFin", Buscar(formulario, "LabelHoraFin"), "Hora de fin", Buscar(formulario, "InputHoraFin"), "20:00");
         Ordenar(filaHorario.transform, gInicio, gFin);
 
-        // Fluctuaciones: la casilla con su texto y el ícono "i" con la explicación.
         Transform filaFluctuaciones = Buscar(formulario, "FilaFluctuaciones");
         HorizontalLayoutGroup filaFluct = Horizontal(filaFluctuaciones.gameObject, 0, 0, 10f, TextAnchor.MiddleLeft);
         filaFluct.childControlWidth = true;
@@ -751,11 +688,6 @@ public static class AplicarDiseno
             filaHorario.transform, Espacio(formulario, "Espacio2", 2f), filaFluctuaciones, aviso, Espacio(formulario, "Espacio3", 4f), filaBotones);
     }
 
-    // =====================================================================
-    // Editor: barra superior, catálogo y ayuda a la izquierda, grilla al
-    // centro, validación (o reproducción) a la derecha.
-    // =====================================================================
-
     private const float MargenEditor = 24f;
     private const float AnchoColumnaIzquierda = 320f;
     private const float AnchoColumnaDerecha = 380f;
@@ -767,9 +699,6 @@ public static class AplicarDiseno
         Transform barra = BarraSuperior(canvas, "Editor de diseño", "Diseñá la planta del estacionamiento piso por piso");
         Transform acciones = Buscar(barra, "Acciones");
 
-        // "Salir" queda visible también durante la reproducción (decisión
-        // de Luca, bitácora 2026-10-09): va a la izquierda de la barra,
-        // antes del título, fuera del grupo que se oculta.
         Transform salir = Buscar(canvas, "BotonSalir");
         salir.SetParent(barra, false);
         Boton(salir, Tema.EstiloBoton.Fantasma, "←  Inicio", 42f, 112f);
@@ -779,8 +708,6 @@ public static class AplicarDiseno
         divisorSalir.GetComponent<Image>().color = Tema.Borde;
         Anclar(Rect(divisorSalir), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(302f, 0f), new Vector2(1f, 36f), new Vector2(0f, 0.5f));
 
-        // Botones de edición: un grupo propio dentro de la barra, que es lo
-        // que se oculta al pasar a la reproducción.
         GameObject accionesEdicion = Hijo(acciones, "AccionesEdicion");
         HorizontalLayoutGroup filaEdicion = Horizontal(accionesEdicion, 0, 0, 10f, TextAnchor.MiddleRight);
         filaEdicion.childControlWidth = true;
@@ -799,7 +726,6 @@ public static class AplicarDiseno
         accionesLayout.preferredWidth = 170f + 120f + 150f + 20f;
         accionesLayout.preferredHeight = 46f;
 
-        // --- Grilla ---
         Transform contenedor = Buscar(canvas, "ContenedorGrilla");
         GridLayoutGroup grilla = contenedor.GetComponent<GridLayoutGroup>();
         grilla.cellSize = new Vector2(TamanioCeldaEditor, TamanioCeldaEditor);
@@ -809,8 +735,6 @@ public static class AplicarDiseno
         float centroY = -(AltoBarraSuperior + 72f + ladoGrilla / 2f) + ResolucionReferencia.y / 2f;
         Rect(contenedor).anchoredPosition = new Vector2(centroX, centroY);
 
-        // Marco detrás de la grilla: el espacio entre celdas deja ver su
-        // color y funciona como líneas de la cuadrícula.
         GameObject marco = Hijo(canvas, "MarcoGrilla", typeof(Image), typeof(Shadow));
         marco.transform.SetSiblingIndex(contenedor.GetSiblingIndex());
         Anclar(Rect(marco), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(centroX, centroY), new Vector2(ladoGrilla + 20f, ladoGrilla + 20f), new Vector2(0.5f, 0.5f));
@@ -821,7 +745,6 @@ public static class AplicarDiseno
         imagenMarco.raycastTarget = false;
         Sombra(marco, 0.08f, 6f);
 
-        // --- Pestañas de pisos y eliminar piso ---
         Transform selector = Buscar(canvas, "SelectorPisos");
         Anclar(Rect(selector), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(centroX - ladoGrilla / 2f - 10f, -(AltoBarraSuperior + 16f)), new Vector2(0f, 46f), new Vector2(0f, 1f));
         Image fondoSelector = selector.GetComponent<Image>();
@@ -844,7 +767,6 @@ public static class AplicarDiseno
         Boton(eliminarPiso, Tema.EstiloBoton.PeligroSuave, "Eliminar este piso", 40f, 190f);
         Anclar(Rect(eliminarPiso), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(centroX + ladoGrilla / 2f + 10f, -(AltoBarraSuperior + 19f)), new Vector2(190f, 40f), new Vector2(1f, 1f));
 
-        // --- Columna izquierda: catálogo y ayuda ---
         GameObject columnaIzquierda = Hijo(canvas, "ColumnaIzquierda");
         Anclar(Rect(columnaIzquierda), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(MargenEditor, -(AltoBarraSuperior + MargenEditor)), new Vector2(AnchoColumnaIzquierda, 0f), new Vector2(0f, 1f));
         Vertical(columnaIzquierda, 0, 0, 16f, TextAnchor.UpperLeft);
@@ -853,19 +775,14 @@ public static class AplicarDiseno
         Transform ayuda = TarjetaAyudaEditor(columnaIzquierda.transform);
         Ordenar(columnaIzquierda.transform, catalogo, ayuda);
 
-        // --- Columna derecha: validación ---
         Transform validacion = TarjetaValidacion(canvas);
 
-        // --- Aviso flotante (errores de colocación, "Proyecto guardado.") ---
         AvisoFlotanteEditor(canvas, centroX);
 
-        // --- Reproducción ---
         DisenarReproduccion(canvas, acciones);
 
         DisenarModalCambiosSinGuardar(canvas);
 
-        // Lo que se oculta al pasar a la reproducción: el catálogo con la
-        // ayuda, Configuración/Guardar/Simular y la validación.
         ModoReproduccion modo = Object.FindFirstObjectByType<ModoReproduccion>(FindObjectsInactive.Include);
         SerializedObject so = new SerializedObject(modo);
         SerializedProperty ocultos = so.FindProperty("objetosDeEdicion");
@@ -877,19 +794,14 @@ public static class AplicarDiseno
         }
         so.ApplyModifiedPropertiesWithoutUndo();
 
-        // Del panel viejo del catálogo solo quedaba el título.
         Object.DestroyImmediate(Buscar(canvas, "PanelCatalogo").gameObject);
     }
 
-    // "¿Guardar los cambios?" al salir del Editor con cambios sin guardar.
     private static void DisenarModalCambiosSinGuardar(Transform canvas)
     {
         GameObject panel = Hijo(canvas, "PanelCambiosSinGuardar", typeof(Image));
         Transform tarjeta = PrepararModal(panel.transform, 520f);
 
-        // Canvas propio por encima de las piezas (sortingOrder 1 a 3, ver
-        // MenuContextual) y del aviso flotante (6); sin GraphicRaycaster no
-        // recibiría clics.
         Canvas canvasModal = Componente<Canvas>(panel);
         canvasModal.overrideSorting = true;
         canvasModal.sortingOrder = 9;
@@ -924,7 +836,6 @@ public static class AplicarDiseno
         public string Descripcion;
     }
 
-    // Orden del catálogo: primero lo que todo diseño necesita.
     private static readonly PiezaCatalogo[] Piezas =
     {
         new PiezaCatalogo { Objeto = "CatalogoItemEntrada", Etiqueta = "Entrada", Nombre = "Entrada",
@@ -959,7 +870,6 @@ public static class AplicarDiseno
         grid.constraintCount = 2;
         Layout(cuadricula).preferredHeight = 4 * 92f + 3 * 10f;
 
-        // Recuadro de detalle: qué es la pieza que está bajo el puntero.
         GameObject detalle = Hijo(tarjeta, "Detalle", typeof(Image));
         Image fondoDetalle = detalle.GetComponent<Image>();
         fondoDetalle.sprite = Tema.Redondeado(12);
@@ -1093,7 +1003,6 @@ public static class AplicarDiseno
         fondo.raycastTarget = false;
         Sombra(aviso, 0.25f, 8f);
 
-        // Encima de las piezas (sortingOrder 1) y las marcas rojas (2).
         Canvas canvasAviso = aviso.GetComponent<Canvas>();
         canvasAviso.overrideSorting = true;
         canvasAviso.sortingOrder = 6;
@@ -1134,7 +1043,6 @@ public static class AplicarDiseno
         Transform panel = Buscar(canvas, "PanelReproduccion");
         ModoReproduccion modo = Object.FindFirstObjectByType<ModoReproduccion>(FindObjectsInactive.Include);
 
-        // "Ver resultados" va en la barra superior, donde estaba "Simular".
         Transform verResultados = Buscar(panel, "BotonVerResultados");
         Boton(verResultados, Tema.EstiloBoton.Primario, "Ver resultados  →", 46f, 210f);
         Anclar(Rect(verResultados), Vector2.one, Vector2.one, new Vector2(-28f, -(AltoBarraSuperior - 46f) / 2f), new Vector2(210f, 46f), Vector2.one);
@@ -1152,7 +1060,6 @@ public static class AplicarDiseno
         EstiloTexto(hora.GetComponent<TMP_Text>(), Tema.FuenteTitulo, 56f, Tema.Texto, TextAlignmentOptions.MidlineLeft);
         Layout(hora.gameObject).preferredHeight = 64f;
 
-        // Contadores en dos recuadros.
         GameObject contadores = Hijo(tarjeta.transform, "Contadores");
         HorizontalLayoutGroup filaContadores = Horizontal(contadores, 0, 0, 10f, TextAnchor.MiddleLeft);
         filaContadores.childControlWidth = true;
@@ -1162,7 +1069,6 @@ public static class AplicarDiseno
         Transform rechazados = Recuadro(contadores.transform, "RecuadroRechazados", Buscar(panel, "TextoRechazados"), Tema.AmbarSuave, Tema.Hex("#A15C00"));
         Ordenar(contadores.transform, ocupadas, rechazados);
 
-        // "Saturado": una píldora roja que se prende y se apaga entera.
         Transform saturado = Buscar(panel, "TextoSaturado");
         GameObject pildora = Hijo(tarjeta.transform, "AvisoSaturado", typeof(Image));
         Image fondoPildora = pildora.GetComponent<Image>();
@@ -1193,8 +1099,6 @@ public static class AplicarDiseno
             Transform boton = Buscar(panel, botonesVelocidad[i]);
             boton.SetParent(velocidades.transform, false);
             Boton(boton, Tema.EstiloBoton.Secundario, textosVelocidad[i], 44f);
-            // La elegida queda deshabilitada (ModoReproduccion.MarcarVelocidad):
-            // tiene que verse rellena, no apagada.
             Button componente = boton.GetComponent<Button>();
             ColorBlock colores = componente.colors;
             colores.disabledColor = Color.white;
@@ -1212,7 +1116,6 @@ public static class AplicarDiseno
         Asignar(modo, "textoPlayPausa", playPausa.GetComponentInChildren<TMP_Text>());
     }
 
-    // Recuadro de color suave con un texto adentro (contadores de la reproducción).
     private static Transform Recuadro(Transform padre, string nombre, Transform texto, Color fondo, Color colorTexto)
     {
         GameObject recuadro = Hijo(padre, nombre, typeof(Image));
@@ -1226,10 +1129,6 @@ public static class AplicarDiseno
         EstiloTexto(texto.GetComponent<TMP_Text>(), Tema.FuenteTextoFuerte, 15f, colorTexto, TextAlignmentOptions.Center);
         return recuadro.transform;
     }
-
-    // =====================================================================
-    // Resultados: barra superior, cuatro tarjetas de indicadores y la curva.
-    // =====================================================================
 
     private static void DisenarResultados(Transform canvas)
     {
@@ -1264,7 +1163,6 @@ public static class AplicarDiseno
         estadoGuardado.GetComponent<TMP_Text>().text = "Estos resultados todavía no están guardados.";
         Ordenar(encabezado.transform, titulo, estadoGuardado);
 
-        // Cuatro tarjetas de indicadores.
         Transform indicadores = Buscar(panel, "Indicadores");
         Object.DestroyImmediate(indicadores.GetComponent<ContentSizeFitter>());
         Object.DestroyImmediate(indicadores.GetComponent<VerticalLayoutGroup>());
@@ -1284,9 +1182,6 @@ public static class AplicarDiseno
         foreach (var definicion in tarjetas)
         {
             Transform tarjeta = Tarjeta(indicadores, "Tarjeta" + definicion.texto.Replace("Texto", ""), 24, 22, 6f);
-            // Las cuatro del mismo ancho, sin importar lo largo de su texto:
-            // el ancho preferido fijo evita que una tarjeta con un detalle
-            // largo se ensanche y corra a las otras.
             LayoutElement tarjetaLayout = Layout(tarjeta.gameObject);
             tarjetaLayout.preferredWidth = tarjetaLayout.minWidth = 10f;
             tarjetaLayout.flexibleWidth = 1f;
@@ -1326,7 +1221,6 @@ public static class AplicarDiseno
         }
         Ordenar(indicadores, tarjetasCreadas.ToArray());
 
-        // Tarjeta del gráfico.
         Transform tarjetaGrafico = Tarjeta(panel, "TarjetaGrafico", 28, 24, 10f);
         Layout(tarjetaGrafico.gameObject).flexibleHeight = 1f;
         Transform tituloGrafico = Subtitulo(tarjetaGrafico, "Titulo", "Curva de ocupación");
@@ -1358,10 +1252,6 @@ public static class AplicarDiseno
         Ordenar(panel, encabezado.transform, indicadores, tarjetaGrafico);
     }
 
-    // =====================================================================
-    // Prefabs: fila de proyecto (Inicio) y celda de la grilla (Editor).
-    // =====================================================================
-
     private static void DisenarPrefabs()
     {
         const string rutaItem = "Assets/Prefabs/ItemProyecto.prefab";
@@ -1376,7 +1266,6 @@ public static class AplicarDiseno
 
         Toggle toggle = item.GetComponent<Toggle>();
         Casilla(toggle);
-        // La fila entera responde al puntero, no solo la casilla.
         toggle.targetGraphic = fondo;
         ColorBlock colores = toggle.colors;
         colores.normalColor = Color.white;
@@ -1406,12 +1295,6 @@ public static class AplicarDiseno
         PrefabUtility.UnloadPrefabContents(celda);
     }
 
-    // =====================================================================
-    // Piezas reutilizables de diseño
-    // =====================================================================
-
-    // Barra blanca de arriba con la marca, el título de la pantalla y un
-    // contenedor "Acciones" a la derecha para los botones.
     private static Transform BarraSuperior(Transform canvas, string titulo, string bajada)
     {
         GameObject barra = Hijo(canvas, "BarraSuperior", typeof(Image));
@@ -1446,8 +1329,6 @@ public static class AplicarDiseno
         return barra.transform;
     }
 
-    // Logo: cuadrado redondeado con el degradado de marca y una "P" de
-    // estacionamiento, más el nombre del sistema.
     private static Transform Marca(Transform padre, bool sobreColor)
     {
         GameObject marca = Hijo(padre, "Marca");
@@ -1499,8 +1380,6 @@ public static class AplicarDiseno
         sombra.useGraphicAlpha = true;
     }
 
-    // Convierte un panel a pantalla completa en un modal: velo oscuro de
-    // fondo y una tarjeta centrada que contiene el formulario.
     private static Transform PrepararModal(Transform panel, float ancho)
     {
         panel.SetAsLastSibling();
@@ -1522,8 +1401,6 @@ public static class AplicarDiseno
         return tarjeta.transform;
     }
 
-    // Campo y botón nuevos (para modales que no existían en la escena), con
-    // la estructura estándar de TextMeshPro; el estilo lo ponen Campo/Boton.
     private static Transform NuevoCampo(Transform padre, string nombre)
     {
         Transform existente = padre.Find(nombre);
@@ -1564,8 +1441,6 @@ public static class AplicarDiseno
         return fila.transform;
     }
 
-    // Recuadro de error (AvisoError): envuelve el TextoError que ya existía
-    // y se asigna en el campo avisoError de la pantalla.
     private static Transform CrearAvisoError(Transform padre, string panelDelTexto, MonoBehaviour pantalla,
         Transform raizBusqueda = null, string campo = "avisoError")
     {
@@ -1638,7 +1513,6 @@ public static class AplicarDiseno
         return grupo.transform;
     }
 
-    // Igual que Grupo, pero reutiliza la etiqueta que ya había en la escena.
     private static Transform GrupoConEtiqueta(Transform padre, string nombre, Transform etiquetaExistente, string etiqueta, Transform campo, string placeholder)
     {
         GameObject grupo = Hijo(padre, nombre);
@@ -1758,8 +1632,6 @@ public static class AplicarDiseno
         }
     }
 
-    // Casilla moderna: recuadro con borde y, al tildarla, un cuadrado
-    // relleno con el color primario y la tilde blanca.
     private static void Casilla(Toggle toggle)
     {
         Image recuadro = toggle.transform.Find("Background").GetComponent<Image>();
@@ -1770,8 +1642,6 @@ public static class AplicarDiseno
         recuadroRect.sizeDelta = new Vector2(24f, 24f);
         if (toggle.GetComponent<Image>() == null)
         {
-            // Sin tinte al pasar el puntero: oscurecería el recuadro y dejaría
-            // ver la tilde blanca de la casilla destildada (ver abajo).
             toggle.targetGraphic = recuadro;
             toggle.transition = Selectable.Transition.None;
         }
@@ -1783,8 +1653,6 @@ public static class AplicarDiseno
         relleno.color = Tema.Primario;
         Tema.Estirar(relleno.rectTransform);
 
-        // La tilde es hija del relleno. Con la casilla destildada el relleno
-        // se apaga, y la tilde blanca queda sobre el recuadro blanco: no se ve.
         Image tilde = ImagenEn(relleno.transform, "Tilde", SpriteUI("Tilde"));
         tilde.color = Color.white;
         Tema.Estirar(tilde.rectTransform, 2f, 2f);
@@ -1804,7 +1672,6 @@ public static class AplicarDiseno
         Tema.Estirar(letra.rectTransform);
         letra.margin = new Vector4(0f, 2f, 0f, 0f);
 
-        // El tooltip: tarjeta oscura a la derecha del ícono.
         Transform panelInfo = Buscar(info, "PanelInfo");
         Image fondo = panelInfo.GetComponent<Image>();
         fondo.sprite = Tema.Redondeado(12);
@@ -1838,8 +1705,6 @@ public static class AplicarDiseno
         return contenedor.transform;
     }
 
-    // Lista con desplazamiento: el contenido crece hacia abajo y se recorta
-    // en el viewport.
     private static Transform ListaDesplazable(Transform padre, string nombre, Transform contenido)
     {
         GameObject lista = Hijo(padre, nombre, typeof(ScrollRect));
@@ -1937,8 +1802,6 @@ public static class AplicarDiseno
         return t;
     }
 
-    // --- Textos ---
-
     private static Transform Titulo(Transform padre, string nombre, string texto, float tamanio)
     {
         TMP_Text t = TextoEn(padre, nombre, texto, Tema.FuenteTitulo, tamanio, Tema.Texto, TextAlignmentOptions.TopLeft);
@@ -2002,8 +1865,6 @@ public static class AplicarDiseno
         return imagen;
     }
 
-    // --- Botones ---
-
     private static void Boton(Transform boton, Tema.EstiloBoton estilo, string texto, float alto, float ancho = -1f)
     {
         Button componente = boton.GetComponent<Button>();
@@ -2028,9 +1889,6 @@ public static class AplicarDiseno
         Tema.Estirar(t.rectTransform, margen, 0f);
     }
 
-    // --- Eventos persistentes (los que se cargan en el Inspector) ---
-
-    // Saca las llamadas a SetActive sobre "objetivo" del onClick de un botón.
     private static void QuitarSetActive(Button boton, GameObject objetivo)
     {
         SerializedObject so = new SerializedObject(boton);
@@ -2047,7 +1905,6 @@ public static class AplicarDiseno
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    // Cambia sobre qué objeto actúa un SetActive del onClick de un botón.
     private static void CambiarDestinoSetActive(Button boton, GameObject anterior, GameObject nuevo)
     {
         SerializedObject so = new SerializedObject(boton);
@@ -2064,10 +1921,6 @@ public static class AplicarDiseno
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    // --- Jerarquía y layout ---
-
-    // Busca por ruta ("Panel/Hijo"), incluidos objetos apagados, comparando
-    // nombres sin espacios sobrantes (había un "BotonEliminarCuenta ").
     private static Transform Buscar(Transform raiz, string ruta)
     {
         Transform actual = raiz;
@@ -2097,7 +1950,6 @@ public static class AplicarDiseno
         return profundidad;
     }
 
-    // Hijo directo con ese nombre; si no existe, lo crea con esos componentes.
     private static GameObject Hijo(Transform padre, string nombre, params Type[] componentes)
     {
         Transform existente = padre.Find(nombre);
@@ -2137,14 +1989,12 @@ public static class AplicarDiseno
         rect.anchoredPosition = posicion;
     }
 
-    // Pone los hijos en ese orden, al final del padre.
     private static void Ordenar(Transform padre, params Transform[] hijos)
     {
         foreach (Transform hijo in hijos)
         {
             hijo.SetParent(padre, false);
             hijo.SetAsLastSibling();
-            // Algunos paneles venían con escala distinta de 1 en la escena.
             hijo.localScale = Vector3.one;
         }
     }
@@ -2186,7 +2036,6 @@ public static class AplicarDiseno
         return h;
     }
 
-    // Alto según el contenido (ContentSizeFitter); con -1 no fija ancho.
     private static void AjustarAlto(Transform t, float ancho)
     {
         ContentSizeFitter ajuste = Componente<ContentSizeFitter>(t.gameObject);
@@ -2216,8 +2065,6 @@ public static class AplicarDiseno
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    // --- Sprites ---
-
     private static Sprite SpriteUI(string nombre) => AssetDatabase.LoadAssetAtPath<Sprite>($"{CarpetaSprites}/{nombre}.png");
 
     private static Sprite SpritePieza(string archivo)
@@ -2227,8 +2074,6 @@ public static class AplicarDiseno
 
     private static readonly int[] Radios = { 6, 8, 10, 12, 14, 16, 20, 24 };
 
-    // Las formas se generan al doble de resolución (Pixels Per Unit = 200)
-    // para que los bordes redondeados se vean nítidos en pantallas grandes.
     private const float PixelesPorUnidad = 200f;
 
     private static void GenerarSprites()
@@ -2283,7 +2128,6 @@ public static class AplicarDiseno
         ConfigurarSprite($"{CarpetaSprites}/Tilde.png", PixelesPorUnidad, 0, TextureWrapMode.Clamp);
     }
 
-    // Violeta arriba a la izquierda, azul al medio, cian abajo a la derecha.
     private static Color Degradado(float u, float v)
     {
         float t = Mathf.Clamp01((u + (1f - v)) / 2f);
@@ -2315,7 +2159,6 @@ public static class AplicarDiseno
             Color c = Color.white;
             if (conBorde)
             {
-                // Borde de 2 píxeles de textura = 1 unidad de UI.
                 c = Color.Lerp(colorBorde, Color.white, Cobertura(d + 2f));
             }
             c.a = Cobertura(d);
@@ -2324,8 +2167,6 @@ public static class AplicarDiseno
         return radio + 1;
     }
 
-    // Distancia con signo del centro del píxel al borde de un rectángulo
-    // redondeado que ocupa toda la textura (negativa adentro).
     private static float DistanciaRedondeado(int x, int y, int ancho, int alto, float radio)
     {
         float px = x + 0.5f - ancho / 2f;
@@ -2371,12 +2212,8 @@ public static class AplicarDiseno
         importador.SaveAndReimport();
     }
 
-    // --- Fuentes ---
-
     private static readonly string[] Fuentes = { "Inter-Regular", "Inter-SemiBold", "Poppins-SemiBold", "Poppins-Bold" };
 
-    // Caracteres que se cargan de antemano en el atlas. El resto se agrega
-    // solo cuando aparece (atlas dinámico).
     private const string CaracteresPrecargados =
         " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" +
         "¡¿áéíóúÁÉÍÓÚñÑüÜ°±·•—–…“”‘’×←→✓●▶‖";
@@ -2394,10 +2231,6 @@ public static class AplicarDiseno
             Font ttf = AssetDatabase.LoadAssetAtPath<Font>($"{CarpetaTtf}/{nombre}.ttf");
             TMP_FontAsset fuente = TMP_FontAsset.CreateFontAsset(ttf, 64, 6, GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true);
             fuente.name = $"{nombre} SDF";
-            // Sin las tablas de kerning de las fuentes: la de Poppins separa
-            // de más algunos pares ("C omparación"), y la de Inter son 17.000
-            // pares que hacen pesar al asset 7 MB. En textos de interfaz la
-            // diferencia no se nota.
             fuente.getFontFeatures = false;
             fuente.fontFeatureTable.glyphPairAdjustmentRecords.Clear();
             AssetDatabase.CreateAsset(fuente, ruta);
@@ -2429,8 +2262,6 @@ public static class AplicarDiseno
             Debug.Log($"[AplicarDiseno] glifo {c} (U+{(int)c:X4}): Inter={inter.HasCharacter(c, false, true)} Liberation={liberation.HasCharacter(c, false, true)}");
         }
 
-        // Fuente por defecto de TextMeshPro: la usan los textos que se crean
-        // por código sin asignarles una (etiquetas del gráfico, rampas).
         TMP_Settings ajustes = AssetDatabase.LoadAssetAtPath<TMP_Settings>("Assets/TextMesh Pro/Resources/TMP Settings.asset");
         SerializedObject so = new SerializedObject(ajustes);
         so.FindProperty("m_defaultFontAsset").objectReferenceValue = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>($"{CarpetaFuentes}/Inter-Regular SDF.asset");

@@ -5,34 +5,14 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-27: dibuja la curva de ocupación dentro de su RectTransform — el
-    // minuto 0 en el borde izquierdo, el último en el derecho, 0 plazas abajo
-    // y el total de plazas arriba — con la grilla de fondo y las etiquetas
-    // de los ejes, para que se pueda leer a qué hora hubo cuántas plazas
-    // ocupadas.
-    //
-    // Unity UI no trae gráficos, así que las líneas se arman a mano: un
-    // rectángulo fino por cada par de puntos consecutivos, generado en
-    // OnPopulateMesh. Es el mismo mecanismo con el que se dibuja una Image,
-    // así que funciona en WebGL sin librerías externas. El color de la curva
-    // es el Color del componente (Inspector); la grilla y los ejes tienen el
-    // suyo.
-    //
-    // Las etiquetas (horas abajo, cantidad de plazas a la izquierda) son
-    // textos hijos de este objeto, creados al mostrar la curva. Quedan por
-    // fuera del rectángulo, así que el gráfico necesita margen alrededor.
     [RequireComponent(typeof(CanvasRenderer))]
     public class GraficoCurva : MaskableGraphic
     {
         private const int MinutosPorHora = 60;
 
-        // Con hasta esta cantidad de plazas hay una línea por plaza; con más,
-        // las líneas se espacian para no pasar de MaximoLineasHorizontales.
         private const int MaximoPlazasConLineaPorPlaza = 15;
         private const int MaximoLineasHorizontales = 10;
 
-        // Una etiqueta de hora más cerca que esto de la del inicio o la del
-        // fin se pisaría con ella: se dibuja la línea pero no el texto.
         private const float DistanciaMinimaEntreEtiquetas = 40f;
 
         private const float SeparacionEtiquetaDelEje = 6f;
@@ -48,16 +28,11 @@ namespace Sme.UI
         private int[] valores;
         private int valorMaximo;
 
-        // Posiciones de la grilla, como proporción del ancho y del alto
-        // (0 = borde izquierdo / de abajo, 1 = derecho / de arriba).
         private readonly List<float> lineasVerticales = new List<float>();
         private readonly List<float> lineasHorizontales = new List<float>();
 
         private readonly List<GameObject> etiquetas = new List<GameObject>();
 
-        // valorMaximo es lo que queda en el borde de arriba (el total de
-        // plazas). Si algún valor lo supera, se dibuja pegado al borde.
-        // horaInicio y horaFin vienen en "HH:mm", como en la configuración.
         public void MostrarCurva(int[] valoresPorMinuto, int valorMaximo, string horaInicio, string horaFin)
         {
             valores = valoresPorMinuto;
@@ -76,17 +51,12 @@ namespace Sme.UI
             SetVerticesDirty();
         }
 
-        // --- Eje horizontal: una línea por cada hora en punto ---
-
         private void ArmarEjeHorizontal(string horaInicio, string horaFin)
         {
             int ultimoMinuto = valores.Length - 1;
             float ancho = rectTransform.rect.width;
 
             CrearEtiquetaHora(horaInicio, 0f);
-            // El último punto es el minuto anterior a la hora de fin (con
-            // 08:00 a 20:00, el 19:59), pero en el borde derecho se lee mejor
-            // la hora de fin tal como se configuró.
             CrearEtiquetaHora(horaFin, 1f);
 
             int minutoInicioDelDia = MinutoDelDia(horaInicio);
@@ -94,7 +64,7 @@ namespace Sme.UI
 
             for (int minuto = primeraHoraEnPunto; minuto < ultimoMinuto; minuto += MinutosPorHora)
             {
-                if (minuto == 0) continue; // ya es la etiqueta del inicio
+                if (minuto == 0) continue;
 
                 float proporcion = (float)minuto / ultimoMinuto;
                 lineasVerticales.Add(proporcion);
@@ -117,8 +87,6 @@ namespace Sme.UI
             return horas * MinutosPorHora + minutos;
         }
 
-        // --- Eje vertical: una línea por plaza, o cada tantas si son muchas ---
-
         private void ArmarEjeVertical()
         {
             int paso = PasoEjeVertical(valorMaximo);
@@ -128,8 +96,6 @@ namespace Sme.UI
                 AgregarLineaHorizontal(plazas);
             }
 
-            // El total siempre se marca, aunque no caiga en el paso: es el
-            // techo del gráfico y se quiere ver cuándo se llegó a él.
             if (valorMaximo % paso != 0)
             {
                 AgregarLineaHorizontal(valorMaximo);
@@ -143,8 +109,6 @@ namespace Sme.UI
             CrearEtiquetaPlazas(plazas.ToString(), proporcion);
         }
 
-        // 1 hasta MaximoPlazasConLineaPorPlaza plazas; después el primer paso
-        // "redondo" que deja como mucho MaximoLineasHorizontales líneas.
         private static int PasoEjeVertical(int totalPlazas)
         {
             if (totalPlazas <= MaximoPlazasConLineaPorPlaza) return 1;
@@ -157,9 +121,6 @@ namespace Sme.UI
             return 1000;
         }
 
-        // --- Etiquetas ---
-
-        // Debajo del eje, centrada sobre la línea de esa hora.
         private void CrearEtiquetaHora(string texto, float proporcionX)
         {
             TMP_Text etiqueta = CrearEtiqueta(texto, TextAlignmentOptions.Top);
@@ -170,7 +131,6 @@ namespace Sme.UI
             rect.anchoredPosition = new Vector2(0f, -SeparacionEtiquetaDelEje);
         }
 
-        // A la izquierda del eje, a la altura de la línea de esa cantidad.
         private void CrearEtiquetaPlazas(string texto, float proporcionY)
         {
             TMP_Text etiqueta = CrearEtiqueta(texto, TextAlignmentOptions.Right);
@@ -207,10 +167,6 @@ namespace Sme.UI
             etiquetas.Clear();
         }
 
-        // --- Dibujo ---
-
-        // Orden de dibujo: grilla, ejes y por último la curva, para que quede
-        // por encima de todo.
         protected override void OnPopulateMesh(VertexHelper vh)
         {
             vh.Clear();
@@ -250,9 +206,6 @@ namespace Sme.UI
             return new Vector2(x, y);
         }
 
-        // Un rectángulo del grosor pedido centrado sobre el segmento a→b: los
-        // cuatro vértices se corren medio grosor hacia cada lado, en la
-        // dirección perpendicular al segmento.
         private void AgregarSegmento(VertexHelper vh, Vector2 a, Vector2 b, float grosor, Color colorSegmento)
         {
             Vector2 direccion = (b - a).normalized;

@@ -2,9 +2,6 @@ using System;
 
 namespace Sme.Models
 {
-    // Espejo de contratos/api-contract.md — nombres de campo iguales al JSON,
-    // JsonUtility serializa por nombre de campo público.
-
     [Serializable]
     public class RegistroRequest
     {
@@ -41,7 +38,6 @@ namespace Sme.Models
         public string preguntaSeguridad;
     }
 
-    // RF-03
     [Serializable]
     public class RecuperarContrasenaRequest
     {
@@ -57,7 +53,6 @@ namespace Sme.Models
         public bool actualizado;
     }
 
-    // RF-04
     [Serializable]
     public class CambiarContrasenaRequest
     {
@@ -72,7 +67,6 @@ namespace Sme.Models
         public bool actualizado;
     }
 
-    // RF-05
     [Serializable]
     public class EliminarCuentaRequest
     {

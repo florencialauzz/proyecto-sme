@@ -7,9 +7,6 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-04: Cambiar contraseña. Requiere sesión iniciada (ApiClient adjunta el
-    // token automáticamente). Requiere que los campos de abajo estén asignados
-    // en el Inspector.
     public class CambiarContrasenaScreen : MonoBehaviour
     {
         [SerializeField] private TMP_InputField campoContrasenaActual;
@@ -25,9 +22,6 @@ namespace Sme.UI
             botonCambiarContrasena.onClick.AddListener(CambiarContrasena);
         }
 
-        // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
-        // alcanza para limpiar un error que quedó de una visita anterior —
-        // OnEnable corre cada vez que el panel se reactiva.
         private void OnEnable()
         {
             OcultarError();
@@ -55,8 +49,6 @@ namespace Sme.UI
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    // A1 (contraseña actual incorrecta) y A2 (confirmación no coincide)
-                    // llegan acá según el "codigo" del error.
                     botonCambiarContrasena.interactable = true;
                     MostrarError(mensaje);
                 });

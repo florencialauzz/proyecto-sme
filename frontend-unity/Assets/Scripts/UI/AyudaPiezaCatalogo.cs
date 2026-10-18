@@ -5,11 +5,6 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // Va en cada tarjeta del catálogo del Editor: mientras el puntero está
-    // encima, el recuadro de detalle (debajo del catálogo) explica qué es la
-    // pieza y qué reglas tiene; al salir vuelve al texto por defecto. Los
-    // textos de cada pieza se cargan en el Inspector. La tarjeta además se
-    // tiñe con el color primario suave mientras el puntero está encima.
     public class AyudaPiezaCatalogo : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         public const string TituloPorDefecto = "Catálogo de piezas";

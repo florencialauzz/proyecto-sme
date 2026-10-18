@@ -8,11 +8,6 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-08 Ingresar cantidad de pisos, RF-09 Ingresar frecuencia, RF-10 Ingresar
-    // tiempo de permanencia, RF-11 Ingresar horario de simulación. Requiere que
-    // los campos de abajo estén asignados en el Inspector, sobre el Canvas de la
-    // pantalla de configuración (a la que se llega después de crear o abrir un
-    // proyecto, antes del Editor).
     public class ConfiguracionScreen : MonoBehaviour
     {
         private static readonly Regex FormatoHora = new Regex(@"^([01]\d|2[0-3]):[0-5]\d$");
@@ -22,16 +17,10 @@ namespace Sme.UI
         [SerializeField] private TMP_InputField campoTiempoPermanencia;
         [SerializeField] private TMP_InputField campoHoraInicio;
         [SerializeField] private TMP_InputField campoHoraFin;
-        // Simular con variación aleatoria de ±50% en llegadas y permanencia
-        // (lo hace el backend). Al lado tiene un ícono "i" (BotonInfo) con la
-        // explicación.
         [SerializeField] private Toggle toggleFluctuaciones;
         [SerializeField] private Button botonGuardar;
         [SerializeField] private AvisoError avisoError;
 
-        // Volver sin guardar: regresa a la pantalla desde la que se llegó (el
-        // Editor, o Inicio si se acaba de crear o abrir el proyecto). Lo que se
-        // haya escrito en el formulario se descarta.
         [SerializeField] private Button botonVolver;
 
         [SerializeField] private UnityEvent alGuardarConfiguracionConExito;
@@ -56,11 +45,6 @@ namespace Sme.UI
             }
         }
 
-        // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
-        // alcanza para limpiar un error que quedó de una visita anterior —
-        // OnEnable corre cada vez que el panel se reactiva. También precarga los
-        // valores ya guardados si el proyecto se está reabriendo (ProyectoManager
-        // los trae desde GET /proyectos/{id}).
         private void OnEnable()
         {
             OcultarError();
@@ -80,9 +64,6 @@ namespace Sme.UI
             }
             else
             {
-                // Proyecto sin configuración todavía: por defecto se simula
-                // con variación. Se fija acá y no solo en la escena porque el
-                // panel puede venir de mostrar otro proyecto.
                 toggleFluctuaciones.isOn = true;
             }
         }
@@ -91,11 +72,6 @@ namespace Sme.UI
         {
             OcultarError();
 
-            // Estas comprobaciones son solo para poder armar un request con los
-            // tipos correctos (JsonUtility no serializa un int o una hora mal
-            // formada) — las reglas de negocio en sí (RF-08 a RF-11: mínimos,
-            // hora fin posterior a hora inicio) las valida el backend, igual que
-            // el resto de las pantallas del sistema.
             if (!int.TryParse(campoCantidadPisos.text, out int cantidadPisos)
                 || !int.TryParse(campoFrecuenciaIngreso.text, out int frecuenciaIngreso)
                 || !int.TryParse(campoTiempoPermanencia.text, out int tiempoPermanencia))
@@ -138,8 +114,6 @@ namespace Sme.UI
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    // A1 de cada RF (RF-08 a RF-11) llega acá según el "codigo" del
-                    // error — el mensaje ya viene listo para mostrar.
                     botonGuardar.interactable = true;
                     MostrarError(mensaje);
                 });

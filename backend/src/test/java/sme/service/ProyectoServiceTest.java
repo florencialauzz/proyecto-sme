@@ -15,10 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-// Cambiar el nombre de un proyecto, sin base de datos: los repositorios son
-// mocks.
 class ProyectoServiceTest {
-
     private static final long USUARIO_ID = 1L;
     private static final long PROYECTO_ID = 10L;
 

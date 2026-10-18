@@ -7,8 +7,6 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-02: Iniciar sesión. Requiere que los campos de abajo estén asignados
-    // en el Inspector, sobre el Canvas de la pantalla de login.
     public class LoginScreen : MonoBehaviour
     {
         [SerializeField] private TMP_InputField campoNombreUsuario;
@@ -23,9 +21,6 @@ namespace Sme.UI
             botonIniciarSesion.onClick.AddListener(IniciarSesion);
         }
 
-        // Este panel no recarga la escena al mostrarse de nuevo (se activa/desactiva
-        // junto con Registro dentro de Auth), así que Awake no alcanza para limpiar
-        // un error que quedó de una visita anterior — OnEnable corre cada vez.
         private void OnEnable()
         {
             OcultarError();
@@ -53,8 +48,6 @@ namespace Sme.UI
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    // A1 (usuario incorrecto) y A2 (contraseña incorrecta) llegan acá
-                    // según el "codigo" del error — el mensaje ya viene listo para mostrar.
                     botonIniciarSesion.interactable = true;
                     MostrarError(mensaje);
                 });

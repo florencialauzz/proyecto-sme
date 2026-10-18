@@ -13,8 +13,6 @@ import java.util.Date;
 
 @Service
 public class JwtService {
-
-    // RNF-02: la sesión expira a las 24 horas de iniciada.
     private static final long EXPIRACION_MS = 24 * 60 * 60 * 1000;
 
     private final SecretKey clave;
@@ -34,8 +32,6 @@ public class JwtService {
                 .compact();
     }
 
-    // Usado por JwtAuthFilter para autenticar cada request protegido. Si el token
-    // es inválido o expiró, lanza JwtException y el filtro lo trata como no autenticado.
     public Long obtenerUsuarioId(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(clave)

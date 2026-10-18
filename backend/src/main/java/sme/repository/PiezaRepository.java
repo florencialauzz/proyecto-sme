@@ -6,7 +6,6 @@ import sme.entity.Pieza;
 import java.util.List;
 
 public interface PiezaRepository extends JpaRepository<Pieza, Long> {
-
     void deleteByProyectoId(Long proyectoId);
 
     List<Pieza> findByProyectoId(Long proyectoId);
