@@ -848,7 +848,7 @@ public static class AplicarDiseno
             Descripcion = "Lugar para un auto. Ocupa dos celdas y su boca tiene que dar a una calle. Clic derecho: marcarla como plaza accesible." },
         new PiezaCatalogo { Objeto = "CatalogoItemZonaBiciMoto", Etiqueta = "Bicis y motos", Nombre = "Zona de bicicletas y motos",
             Descripcion = "Cinco lugares para bicicletas o motos en una celda. Su boca tiene que dar a una calle." },
-        new PiezaCatalogo { Objeto = "CatalogoItemEscalera", Etiqueta = "Escalera", Nombre = "Escalera",
+        new PiezaCatalogo { Objeto = "CatalogoItemEscalera", Etiqueta = "Escalera/salida de emergencia", Nombre = "Escalera/salida de emergencia",
             Descripcion = "Salida peatonal y de emergencia. Se coloca una vez y ocupa la misma celda en todos los pisos." },
         new PiezaCatalogo { Objeto = "CatalogoItemRampaSube", Etiqueta = "Rampa sube", Nombre = "Rampa que sube",
             Descripcion = "Conecta este piso con el de arriba. Se coloca una vez y el sistema crea su celda en los dos pisos." },
@@ -902,9 +902,27 @@ public static class AplicarDiseno
 
             Image icono = ImagenEn(item, "Icono", spritePieza);
             icono.preserveAspect = true;
-            Anclar(icono.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(80f, 50f), new Vector2(0.5f, 1f));
-            TMP_Text nombre = TextoEn(item, "Nombre", pieza.Etiqueta, Tema.FuenteTextoFuerte, 14f, Tema.Texto, TextAlignmentOptions.Center);
-            Anclar(nombre.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 8f), new Vector2(-12f, 22f), new Vector2(0.5f, 0f));
+            // Una etiqueta larga va en dos renglones: ícono más chico y letra más chica
+            bool etiquetaLarga = pieza.Etiqueta.Length > 16;
+            if (etiquetaLarga)
+            {
+                Anclar(icono.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(80f, 40f), new Vector2(0.5f, 1f));
+            }
+            else
+            {
+                Anclar(icono.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(80f, 50f), new Vector2(0.5f, 1f));
+            }
+
+            float tamanioLetra = etiquetaLarga ? 12f : 14f;
+            TMP_Text nombre = TextoEn(item, "Nombre", pieza.Etiqueta, Tema.FuenteTextoFuerte, tamanioLetra, Tema.Texto, TextAlignmentOptions.Center);
+            if (etiquetaLarga)
+            {
+                Anclar(nombre.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 6f), new Vector2(-12f, 30f), new Vector2(0.5f, 0f));
+            }
+            else
+            {
+                Anclar(nombre.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 8f), new Vector2(-12f, 22f), new Vector2(0.5f, 0f));
+            }
 
             AyudaPiezaCatalogo ayuda = Componente<AyudaPiezaCatalogo>(item.gameObject);
             Asignar(ayuda, "nombrePieza", pieza.Nombre);

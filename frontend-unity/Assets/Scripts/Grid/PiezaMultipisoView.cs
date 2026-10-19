@@ -280,7 +280,7 @@ namespace Sme.Grid
 
         private string NombrePieza()
         {
-            return tipo == TipoPieza.ESCALERA ? "La escalera" : "La rampa";
+            return tipo == TipoPieza.ESCALERA ? "La escalera/salida de emergencia" : "La rampa";
         }
 
         private void AplicarRotacion()

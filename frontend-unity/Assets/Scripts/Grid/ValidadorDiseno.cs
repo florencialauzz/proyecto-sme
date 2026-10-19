@@ -217,7 +217,7 @@ namespace Sme.Grid
                         Marcar(deLaColumna, resultado);
                     }
                 }
-                resultado.Mensajes.Add($"La escalera de la fila {celda.Fila + 1}, columna {celda.Columna + 1} no tiene camino a pie en planta baja hasta la Entrada o la Salida.");
+                resultado.Mensajes.Add($"La escalera/salida de emergencia de la fila {celda.Fila + 1}, columna {celda.Columna + 1} no tiene camino a pie en planta baja hasta la Entrada o la Salida.");
             }
         }
 
@@ -238,7 +238,7 @@ namespace Sme.Grid
                 if (EstaConectadaAPie(celda)) continue;
 
                 Marcar(celda, resultado);
-                resultado.Mensajes.Add($"{EncabezadoPiso(celda.Piso)}: la escalera de la fila {celda.Fila + 1}, columna {celda.Columna + 1} no está conectada a ninguna calle ni plaza.");
+                resultado.Mensajes.Add($"{EncabezadoPiso(celda.Piso)}: la escalera/salida de emergencia de la fila {celda.Fila + 1}, columna {celda.Columna + 1} no está conectada a ninguna calle ni plaza.");
             }
         }
 
@@ -285,8 +285,8 @@ namespace Sme.Grid
                 if (sinCamino.Total == 0) continue;
 
                 resultado.Mensajes.Add(escaleras.Count == 0
-                    ? $"{EncabezadoPiso(piso)}: no hay ninguna escalera, así que desde {sinCamino.Describir()} no se puede bajar a pie."
-                    : $"{EncabezadoPiso(piso)}: desde {sinCamino.Describir()} no hay camino a pie hasta una escalera para bajar.");
+                    ? $"{EncabezadoPiso(piso)}: no hay ninguna escalera/salida de emergencia, así que desde {sinCamino.Describir()} no se puede bajar a pie."
+                    : $"{EncabezadoPiso(piso)}: desde {sinCamino.Describir()} no hay camino a pie hasta una escalera/salida de emergencia para bajar.");
             }
         }
 
