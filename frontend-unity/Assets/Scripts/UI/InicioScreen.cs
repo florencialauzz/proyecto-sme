@@ -367,7 +367,6 @@ namespace Sme.UI
                 detalle.proyectoId,
                 detalle.filasGrilla,
                 detalle.columnasGrilla,
-                detalle.estado,
                 detalle.piezas,
                 detalle.cantidadPisos,
                 detalle.frecuenciaIngreso,
@@ -402,8 +401,7 @@ namespace Sme.UI
                     ProyectoManager.GuardarProyecto(
                         respuesta.proyectoId,
                         respuesta.filasGrilla,
-                        respuesta.columnasGrilla,
-                        respuesta.estado);
+                        respuesta.columnasGrilla);
                     alCrearProyectoConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>

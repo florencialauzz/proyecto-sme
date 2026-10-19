@@ -53,8 +53,7 @@ public class ProyectoService {
         proyecto.setNombre(request.nombre());
 
         proyecto = proyectoRepository.save(proyecto);
-        return new CrearProyectoResponse(proyecto.getId(), proyecto.getFilasGrilla(), proyecto.getColumnasGrilla(),
-                proyecto.getEstado().name());
+        return new CrearProyectoResponse(proyecto.getId(), proyecto.getFilasGrilla(), proyecto.getColumnasGrilla());
     }
 
     public List<ProyectoResumenResponse> listar(Long usuarioId) {
@@ -62,7 +61,6 @@ public class ProyectoService {
                 .map(proyecto -> new ProyectoResumenResponse(
                         proyecto.getId(),
                         proyecto.getNombre(),
-                        proyecto.getEstado().name(),
                         proyecto.getFechaModificacion()))
                 .toList();
     }
@@ -97,8 +95,7 @@ public class ProyectoService {
                 proyecto.getConFluctuaciones(),
                 proyecto.getFilasGrilla(),
                 proyecto.getColumnasGrilla(),
-                piezas,
-                proyecto.getEstado().name());
+                piezas);
     }
 
     @Transactional
@@ -116,7 +113,6 @@ public class ProyectoService {
         copia.setConFluctuaciones(original.getConFluctuaciones());
         copia.setFilasGrilla(original.getFilasGrilla());
         copia.setColumnasGrilla(original.getColumnasGrilla());
-        copia.setEstado(original.getEstado());
         copia = proyectoRepository.save(copia);
 
         Long copiaId = copia.getId();

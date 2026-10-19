@@ -2,8 +2,6 @@ package sme.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -65,10 +63,6 @@ public class Proyecto {
     @Column(name = "columnas_grilla", nullable = false)
     private Integer columnasGrilla = 15;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private EstadoProyecto estado = EstadoProyecto.FORMULARIO;
-
     @CreationTimestamp
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
@@ -112,9 +106,6 @@ public class Proyecto {
 
     public Integer getColumnasGrilla() { return columnasGrilla; }
     public void setColumnasGrilla(Integer columnasGrilla) { this.columnasGrilla = columnasGrilla; }
-
-    public EstadoProyecto getEstado() { return estado; }
-    public void setEstado(EstadoProyecto estado) { this.estado = estado; }
 
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }

@@ -7,7 +7,6 @@ namespace Sme.Managers
         public static long ProyectoId { get; private set; }
         public static int FilasGrilla { get; private set; }
         public static int ColumnasGrilla { get; private set; }
-        public static string Estado { get; private set; }
 
         public static int CantidadPisos { get; private set; }
         public static int FrecuenciaIngreso { get; private set; }
@@ -27,7 +26,7 @@ namespace Sme.Managers
 
         public static bool ConfiguracionAbiertaDesdeEditor { get; private set; }
 
-        public static void GuardarProyecto(long proyectoId, int filasGrilla, int columnasGrilla, string estado,
+        public static void GuardarProyecto(long proyectoId, int filasGrilla, int columnasGrilla,
             PiezaDto[] piezasACargar = null, int cantidadPisos = 0, int frecuenciaIngreso = 0,
             int tiempoPermanencia = 0, string horaInicioSimulacion = null, string horaFinSimulacion = null,
             bool conFluctuaciones = false)
@@ -35,7 +34,6 @@ namespace Sme.Managers
             ProyectoId = proyectoId;
             FilasGrilla = filasGrilla;
             ColumnasGrilla = columnasGrilla;
-            Estado = estado;
             PiezasACargar = piezasACargar;
             CantidadPisos = cantidadPisos;
             FrecuenciaIngreso = frecuenciaIngreso;
@@ -93,7 +91,6 @@ namespace Sme.Managers
             ProyectoId = 0;
             FilasGrilla = 0;
             ColumnasGrilla = 0;
-            Estado = null;
             PiezasACargar = null;
             CantidadPisos = 0;
             FrecuenciaIngreso = 0;

@@ -14,7 +14,6 @@ namespace Sme.Models
         public long proyectoId;
         public int filasGrilla;
         public int columnasGrilla;
-        public string estado;
     }
 
     [Serializable]
@@ -22,7 +21,6 @@ namespace Sme.Models
     {
         public long proyectoId;
         public string nombre;
-        public string estado;
         public string fechaModificacion;
     }
 
@@ -76,7 +74,6 @@ namespace Sme.Models
         public int filasGrilla;
         public int columnasGrilla;
         public PiezaDto[] piezas;
-        public string estado;
     }
 
     [Serializable]

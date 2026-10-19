@@ -16,6 +16,5 @@ public record ProyectoDetalleResponse(
         Boolean conFluctuaciones,
         Integer filasGrilla,
         Integer columnasGrilla,
-        List<PiezaResponse> piezas,
-        String estado) {
+        List<PiezaResponse> piezas) {
 }
