@@ -135,11 +135,12 @@ namespace Sme.Grid
 
             var opciones = new List<MenuContextual.Opcion>();
 
-            // RF-19, bloqueante 8: no se permite marcar cruce peatonal sobre
-            // una celda que funciona como cruce vehicular — la opción
+            // RF-19, bloqueante 8: el cruce peatonal solo se puede marcar
+            // sobre una calle recta — en curva, T o cruce vehicular la opción
             // directamente no aparece en el menú en vez de ofrecerla y
-            // rechazarla.
-            if (tipo == TipoPieza.CALLE && !GrafoCirculacion.EsCruce(celdaAncla.Modelo))
+            // rechazarla (Refrescar borra la marca de cualquier calle que no
+            // sea recta).
+            if (tipo == TipoPieza.CALLE && AutotilingCalle.Elegir(celdaAncla.Modelo).forma == AutotilingCalle.Forma.Recta)
             {
                 string texto = esCrucePeatonal ? "Quitar cruce peatonal" : "Marcar como cruce peatonal";
                 opciones.Add(new MenuContextual.Opcion(texto, AlternarCrucePeatonal));
