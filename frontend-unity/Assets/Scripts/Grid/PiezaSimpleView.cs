@@ -90,7 +90,7 @@ namespace Sme.Grid
 
             var opciones = new List<MenuContextual.Opcion>();
 
-            if (tipo == TipoPieza.CALLE && !GrafoCirculacion.EsCruce(celdaAncla.Modelo))
+            if (tipo == TipoPieza.CALLE && AutotilingCalle.Elegir(celdaAncla.Modelo).forma == AutotilingCalle.Forma.Recta)
             {
                 string texto = esCrucePeatonal ? "Quitar cruce peatonal" : "Marcar como cruce peatonal";
                 opciones.Add(new MenuContextual.Opcion(texto, AlternarCrucePeatonal));
