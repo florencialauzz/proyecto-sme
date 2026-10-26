@@ -254,26 +254,66 @@ class MotorSimulacionTest {
         }
     }
 
-    @Test
-    void elTechoDeUnaGrillaDeQuinceDeUnPisoEsElDelDocumento() {
-        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto());
-
-        assertEquals(175.2, Indicadores.techoCeldasDePlaza(grilla), 0.0001);
+    private static GrillaSimulacion grillaConPlazas(int pisos, int cantidadPlazas) {
+        List<Pieza> piezas = new ArrayList<>();
+        int celdasPorPiso = FILAS * COLUMNAS;
+        for (int i = 0; i < cantidadPlazas; i++) {
+            int piso = i / celdasPorPiso;
+            int fila = (i % celdasPorPiso) / COLUMNAS;
+            int columna = i % COLUMNAS;
+            piezas.add(plaza(piso, fila, columna, Direccion.SUR));
+        }
+        return new GrillaSimulacion(pisos, FILAS, COLUMNAS, piezas);
     }
 
     @Test
-    void elTechoDescuentaRampasYEscaleraConVariosPisos() {
-        GrillaSimulacion grilla = new GrillaSimulacion(3, FILAS, COLUMNAS, pasilloRecto());
-
-        assertEquals(521.6, Indicadores.techoCeldasDePlaza(grilla), 0.0001);
+    void elTechoDeUnPisoUsaElFactorDeAprovechamiento() {
+        assertEquals(155.49, Indicadores.techoCeldasDePlaza(grillaConPlazas(1, 0)), 0.0001);
     }
 
     @Test
-    void eficienciaEsElPorcentajeDeCeldasDePlaza() {
-        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 4));
+    void elTechoDeDosPisosDescuentaRampasYEscaleras() {
+        assertEquals(308.85, Indicadores.techoCeldasDePlaza(grillaConPlazas(2, 0)), 0.0001);
+    }
 
-        assertEquals(new BigDecimal("1.78"), Indicadores.eficienciaEspacial(grilla));
-        assertEquals("Deficiente", Indicadores.calificacionEficiencia(grilla));
+    @Test
+    void elTechoDeTresPisosDescuentaRampasYEscaleras() {
+        assertEquals(462.92, Indicadores.techoCeldasDePlaza(grillaConPlazas(3, 0)), 0.0001);
+    }
+
+    @Test
+    void eficienciaEsLaCercaniaAlTechoTeorico() {
+        BigDecimal eficiencia = Indicadores.eficienciaEspacial(grillaConPlazas(1, 69));
+
+        assertEquals(new BigDecimal("88.75"), eficiencia);
+        assertEquals("Bueno", Indicadores.calificacionEficiencia(eficiencia));
+    }
+
+    @Test
+    void eficienciaPorDebajoDeSetentaEsDeficiente() {
+        BigDecimal eficiencia = Indicadores.eficienciaEspacial(grillaConPlazas(1, 50));
+
+        assertEquals(new BigDecimal("64.31"), eficiencia);
+        assertEquals("Deficiente", Indicadores.calificacionEficiencia(eficiencia));
+    }
+
+    @Test
+    void eficienciaNoPasaDeCien() {
+        assertEquals(new BigDecimal("100.00"), Indicadores.eficienciaEspacial(grillaConPlazas(1, 78)));
+    }
+
+    @Test
+    void eficienciaDeDosYTresPisos() {
+        assertEquals(new BigDecimal("99.72"), Indicadores.eficienciaEspacial(grillaConPlazas(2, 154)));
+        assertEquals(new BigDecimal("99.80"), Indicadores.eficienciaEspacial(grillaConPlazas(3, 231)));
+    }
+
+    @Test
+    void calificacionDeLaEficienciaSegunLosCortes() {
+        assertEquals("Bueno", Indicadores.calificacionEficiencia(new BigDecimal("85.00")));
+        assertEquals("Regular", Indicadores.calificacionEficiencia(new BigDecimal("84.99")));
+        assertEquals("Regular", Indicadores.calificacionEficiencia(new BigDecimal("70.00")));
+        assertEquals("Deficiente", Indicadores.calificacionEficiencia(new BigDecimal("69.99")));
     }
 
     @Test
@@ -313,21 +353,19 @@ class MotorSimulacionTest {
     }
 
     @Test
-    void puntuacionGeneralPonderaEficienciaRelativaAlTechoYDemanda() {
-        GrillaSimulacion grilla = new GrillaSimulacion(1, FILAS, COLUMNAS, pasilloRecto(2, 4));
+    void puntuacionGeneralPonderaEficienciaYDemandaPorIgual() {
+        BigDecimal puntuacion = Indicadores.puntuacionGeneral(new BigDecimal("80.00"), new BigDecimal("90.00"));
 
-        BigDecimal puntuacion = Indicadores.puntuacionGeneral(grilla, new BigDecimal("100.00"));
-
-        assertEquals(new BigDecimal("51.14"), puntuacion);
-        assertEquals("Deficiente", Indicadores.calificacionPuntuacion(puntuacion));
+        assertEquals(new BigDecimal("85.00"), puntuacion);
+        assertEquals("Bueno", Indicadores.calificacionPuntuacion(puntuacion));
     }
 
     @Test
     void calificacionDeLaPuntuacionSegunLosCortes() {
-        assertEquals("Bueno", Indicadores.calificacionPuntuacion(new BigDecimal("80.00")));
-        assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("79.99")));
-        assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("60.00")));
-        assertEquals("Deficiente", Indicadores.calificacionPuntuacion(new BigDecimal("59.99")));
+        assertEquals("Bueno", Indicadores.calificacionPuntuacion(new BigDecimal("85.00")));
+        assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("84.99")));
+        assertEquals("Regular", Indicadores.calificacionPuntuacion(new BigDecimal("70.00")));
+        assertEquals("Deficiente", Indicadores.calificacionPuntuacion(new BigDecimal("69.99")));
     }
 
     private static ResultadoMotor simulacionConRechazos() {
