@@ -114,13 +114,14 @@ public class SimulacionService {
                 .map(intervalo -> new PeriodoSaturacionResponse(intervalo.inicio(), intervalo.fin()))
                 .toList();
 
+        BigDecimal eficienciaEspacial = Indicadores.eficienciaEspacial(grilla);
         BigDecimal demandaSatisfecha = Indicadores.demandaSatisfecha(resultado);
-        BigDecimal puntuacionGeneral = Indicadores.puntuacionGeneral(grilla, demandaSatisfecha);
+        BigDecimal puntuacionGeneral = Indicadores.puntuacionGeneral(eficienciaEspacial, demandaSatisfecha);
         String calificacionTexto = Indicadores.calificacionPuntuacion(puntuacionGeneral);
 
         return new EjecutarSimulacionResponse(
-                Indicadores.eficienciaEspacial(grilla),
-                Indicadores.calificacionEficiencia(grilla),
+                eficienciaEspacial,
+                Indicadores.calificacionEficiencia(eficienciaEspacial),
                 curva,
                 demandaSatisfecha,
                 resultado.vehiculosRechazados(),

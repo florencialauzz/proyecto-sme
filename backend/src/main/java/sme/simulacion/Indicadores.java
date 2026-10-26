@@ -10,42 +10,34 @@ public final class Indicadores {
 
     private static final int CELDAS_ENTRADA_Y_SALIDA = 2;
 
-    private static final double FRACCION_PLAZA_DOBLE_CARGA = 0.80;
-    private static final double FRACCION_PLAZA_BORDE = 0.65;
+    private static final double FACTOR_APROVECHAMIENTO = 0.71;
 
     private static final int PLAZAS_POR_ZONA_BICI_MOTO = 25;
 
     private static final int CELDAS_RAMPA_POR_CONEXION = 4;
 
-    private static final double UMBRAL_BUENO = 0.90;
-    private static final double UMBRAL_REGULAR = 0.70;
+    private static final double EFICIENCIA_MAXIMA = 100;
 
-    // Pesos provisorios, tienen que sumar 1
     private static final double PESO_EFICIENCIA = 0.50;
     private static final double PESO_DEMANDA = 0.50;
-    private static final double PUNTAJE_BUENO = 80;
-    private static final double PUNTAJE_REGULAR = 60;
+
+    private static final double UMBRAL_BUENO = 85;
+    private static final double UMBRAL_REGULAR = 70;
 
     private Indicadores() {
     }
 
     public static BigDecimal eficienciaEspacial(GrillaSimulacion grilla) {
-        int celdasDePlaza = grilla.getPlazas().size() * CELDAS_POR_PLAZA;
-        int celdasTotales = grilla.getFilas() * grilla.getColumnas() * grilla.getCantidadPisos();
-        return porcentaje(celdasDePlaza, celdasTotales);
+        double celdasDePlaza = grilla.getPlazas().size() * CELDAS_POR_PLAZA;
+        double eficiencia = celdasDePlaza / techoCeldasDePlaza(grilla) * 100;
+        if (eficiencia > EFICIENCIA_MAXIMA) {
+            eficiencia = EFICIENCIA_MAXIMA;
+        }
+        return BigDecimal.valueOf(eficiencia).setScale(2, RoundingMode.HALF_UP);
     }
 
-    public static String calificacionEficiencia(GrillaSimulacion grilla) {
-        double celdasDePlaza = grilla.getPlazas().size() * CELDAS_POR_PLAZA;
-        double fraccionDelTecho = celdasDePlaza / techoCeldasDePlaza(grilla);
-
-        if (fraccionDelTecho >= UMBRAL_BUENO) {
-            return "Bueno";
-        }
-        if (fraccionDelTecho >= UMBRAL_REGULAR) {
-            return "Regular";
-        }
-        return "Deficiente";
+    public static String calificacionEficiencia(BigDecimal eficienciaEspacial) {
+        return calificar(eficienciaEspacial.doubleValue());
     }
 
     public static double techoCeldasDePlaza(GrillaSimulacion grilla) {
@@ -53,24 +45,20 @@ public final class Indicadores {
 
         int celdasTotales = grilla.getFilas() * grilla.getColumnas() * pisos;
 
-        int sinEntradaYSalida = celdasTotales - CELDAS_ENTRADA_Y_SALIDA;
-
-        int overheadVertical = 0;
+        int celdasFijas = CELDAS_ENTRADA_Y_SALIDA;
         if (pisos > 1) {
-            int conexiones = pisos - 1;
-            int celdasRampa = conexiones * CELDAS_RAMPA_POR_CONEXION;
             int celdasEscalera = pisos;
-            overheadVertical = celdasEscalera + celdasRampa;
+            int celdasRampa = CELDAS_RAMPA_POR_CONEXION * (pisos - 1);
+            celdasFijas = celdasFijas + celdasEscalera + celdasRampa;
         }
-        int utilizablesPrimeraPasada = sinEntradaYSalida - overheadVertical;
 
-        double plazasDisenoBorde = utilizablesPrimeraPasada * FRACCION_PLAZA_BORDE / CELDAS_POR_PLAZA;
-        double plazasDisenoCompacto = utilizablesPrimeraPasada * FRACCION_PLAZA_DOBLE_CARGA / CELDAS_POR_PLAZA;
-        double plazasEstimadas = (plazasDisenoBorde + plazasDisenoCompacto) / 2;
+        int celdasUtiles = celdasTotales - celdasFijas;
+
+        double plazasEstimadas = celdasUtiles * FACTOR_APROVECHAMIENTO / CELDAS_POR_PLAZA;
         int zonasBiciMoto = (int) Math.ceil(plazasEstimadas / PLAZAS_POR_ZONA_BICI_MOTO);
-        int utilizables = utilizablesPrimeraPasada - zonasBiciMoto;
+        celdasUtiles = celdasUtiles - zonasBiciMoto;
 
-        return utilizables * FRACCION_PLAZA_DOBLE_CARGA;
+        return celdasUtiles * FACTOR_APROVECHAMIENTO;
     }
 
     public static BigDecimal demandaSatisfecha(ResultadoMotor resultado) {
@@ -107,24 +95,21 @@ public final class Indicadores {
         return intervalos;
     }
 
-    public static BigDecimal puntuacionGeneral(GrillaSimulacion grilla, BigDecimal demandaSatisfecha) {
-        double celdasDePlaza = grilla.getPlazas().size() * CELDAS_POR_PLAZA;
-        double eficienciaRelativaAlTecho = celdasDePlaza / techoCeldasDePlaza(grilla) * 100;
-        if (eficienciaRelativaAlTecho > 100) {
-            eficienciaRelativaAlTecho = 100;
-        }
-
-        double puntaje = PESO_EFICIENCIA * eficienciaRelativaAlTecho
+    public static BigDecimal puntuacionGeneral(BigDecimal eficienciaEspacial, BigDecimal demandaSatisfecha) {
+        double puntaje = PESO_EFICIENCIA * eficienciaEspacial.doubleValue()
                 + PESO_DEMANDA * demandaSatisfecha.doubleValue();
         return BigDecimal.valueOf(puntaje).setScale(2, RoundingMode.HALF_UP);
     }
 
     public static String calificacionPuntuacion(BigDecimal puntuacionGeneral) {
-        double puntaje = puntuacionGeneral.doubleValue();
-        if (puntaje >= PUNTAJE_BUENO) {
+        return calificar(puntuacionGeneral.doubleValue());
+    }
+
+    private static String calificar(double valor) {
+        if (valor >= UMBRAL_BUENO) {
             return "Bueno";
         }
-        if (puntaje >= PUNTAJE_REGULAR) {
+        if (valor >= UMBRAL_REGULAR) {
             return "Regular";
         }
         return "Deficiente";
