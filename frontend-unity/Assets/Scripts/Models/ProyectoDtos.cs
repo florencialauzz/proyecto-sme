@@ -2,9 +2,6 @@ using System;
 
 namespace Sme.Models
 {
-    // Espejo de contratos/api-contract.md — nombres de campo iguales al JSON,
-    // JsonUtility serializa por nombre de campo público.
-
     [Serializable]
     public class CrearProyectoRequest
     {
@@ -17,21 +14,16 @@ namespace Sme.Models
         public long proyectoId;
         public int filasGrilla;
         public int columnasGrilla;
-        public string estado;
     }
 
-    // RF-22: un item de GET /proyectos.
     [Serializable]
     public class ProyectoResumenDto
     {
         public long proyectoId;
         public string nombre;
-        public string estado;
         public string fechaModificacion;
     }
 
-    // Duplicar un proyecto: POST /proyectos/{id}/duplicar. El endpoint no lee
-    // body: se manda "{}" solo porque ApiClient.Post siempre serializa uno.
     [Serializable]
     public class DuplicarProyectoRequest
     {
@@ -44,8 +36,19 @@ namespace Sme.Models
         public string nombre;
     }
 
-    // Borrar un proyecto: DELETE /proyectos/{id}. Mismo caso que el anterior,
-    // sin body.
+    [Serializable]
+    public class RenombrarProyectoRequest
+    {
+        public string nombre;
+    }
+
+    [Serializable]
+    public class RenombrarProyectoResponse
+    {
+        public long proyectoId;
+        public string nombre;
+    }
+
     [Serializable]
     public class EliminarProyectoRequest
     {
@@ -57,7 +60,6 @@ namespace Sme.Models
         public bool eliminado;
     }
 
-    // Abrir un proyecto guardado: GET /proyectos/{id}.
     [Serializable]
     public class ProyectoDetalleResponse
     {
@@ -72,10 +74,8 @@ namespace Sme.Models
         public int filasGrilla;
         public int columnasGrilla;
         public PiezaDto[] piezas;
-        public string estado;
     }
 
-    // RF-08 a RF-11: PUT /proyectos/{id}/configuracion.
     [Serializable]
     public class GuardarConfiguracionRequest
     {

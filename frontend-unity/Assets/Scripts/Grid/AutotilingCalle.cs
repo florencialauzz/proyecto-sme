@@ -2,20 +2,6 @@ using System.Collections.Generic;
 
 namespace Sme.Grid
 {
-    // Qué forma de fondo le toca a una Calle y con qué rotación, según
-    // editor/catalogo-piezas.md. Recta cubre 0, 1 y 2 conexiones
-    // colineales — no hay sprite propio para "aislada" ni "extremo".
-    //
-    // Convención de los sprites SIN ROTAR (0°), fija por el arte que se
-    // asigna en el prefab — este es el único lugar que la conoce:
-    //   Recta   conecta NORTE + SUR
-    //   Curva   conecta OESTE + SUR
-    //   CruceT  conecta todo menos OESTE (NORTE + ESTE + SUR) — el paso
-    //           peatonal recto del sprite queda sobre la cara sin calle
-    //           (OESTE), las rampas de cordón sobre las esquinas con calle
-    //   CrucePlus es simétrico, nunca rota
-    // Si el arte final usa otra orientación de base, ajustar acá los
-    // arrays Base* — no hace falta tocar nada más.
     public static class AutotilingCalle
     {
         public enum Forma
@@ -35,9 +21,6 @@ namespace Sme.Grid
 
             if (conectadas.Length == 0)
             {
-                // Sin ninguna vecina conectada no hay de dónde derivar el
-                // ángulo — se usa la direccion propia de la celda
-                // (editor/catalogo-piezas.md).
                 return (Forma.Recta, (int)(celda.Direccion ?? CaraAcceso.NORTE));
             }
 
@@ -62,9 +45,6 @@ namespace Sme.Grid
             return (Forma.CrucePlus, 0);
         }
 
-        // Cuántos pasos de 90° en sentido horario (mismo signo que el resto
-        // del editor, ver PiezaSimpleView.AplicarRotacion) hacen falta para
-        // que baseDirecciones coincida con objetivo, sin importar el orden.
         private static int PasosDeRotacion(CaraAcceso[] baseDirecciones, CaraAcceso[] objetivo)
         {
             var objetivoSet = new HashSet<CaraAcceso>(objetivo);

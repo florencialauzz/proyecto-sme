@@ -1,11 +1,9 @@
+using Sme.UI;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Sme.Grid
 {
-    // RF-12: una celda de la grilla. El estado lógico (qué pieza hay, hacia
-    // dónde apunta) vive en Modelo (GrillaModelo) — esta vista solo sabe
-    // dónde está y avisa a sus vecinas cuando algo cambió.
     public class CeldaView : MonoBehaviour
     {
         private static readonly CaraAcceso[] Direcciones =
@@ -27,9 +25,7 @@ namespace Sme.Grid
             Modelo = GrillaModelo.ObtenerCelda(piso, fila, columna);
         }
 
-        // Marca roja de RF-20 (ver MostrarAdvertencia). Se crea recién la
-        // primera vez que hace falta.
-        private static readonly Color ColorAdvertencia = new Color(0.9f, 0.1f, 0.1f, 0.4f);
+        private static readonly Color ColorAdvertencia = new Color(Tema.Peligro.r, Tema.Peligro.g, Tema.Peligro.b, 0.42f);
         private GameObject marcaAdvertencia;
 
         public void Ocupar(TipoPieza tipo, CaraAcceso? direccion)
@@ -53,19 +49,12 @@ namespace Sme.Grid
             ValidadorDiseno.PedirValidacion();
         }
 
-        // RF-14: la accesibilidad de una Plaza cambia la cuenta de RF-20
-        // (mínimo de plazas accesibles), aunque no cambie ninguna celda.
         public void MarcarAccesible(bool esAccesible)
         {
             Modelo.MarcarAccesible(esAccesible);
             ValidadorDiseno.PedirValidacion();
         }
 
-        // RF-20: resalta la celda en rojo, por encima de la pieza que tenga.
-        // Canvas propio con sortingOrder 2 por el mismo motivo que las piezas
-        // usan 1 (ver PiezaView.Awake): dibujarse encima sin tocar el orden
-        // de hermanos que necesita el GridLayoutGroup. No recibe raycasts,
-        // así la pieza de abajo se sigue pudiendo arrastrar.
         public void MostrarAdvertencia(bool mostrar)
         {
             if (!mostrar)
@@ -98,9 +87,6 @@ namespace Sme.Grid
             marcaAdvertencia.SetActive(true);
         }
 
-        // Autotiling y rol de cruce (editor/grafo-circulacion.md) dependen de
-        // hasta 4 vecinas del mismo piso — colocar, mover o quitar tiene que
-        // hacer que se vuelvan a dibujar, no solo la celda afectada.
         private void NotificarVecinasYPropia()
         {
             Refrescar();
@@ -111,9 +97,6 @@ namespace Sme.Grid
             }
         }
 
-        // includeInactive: una Rampa o Escalera colocada mirando un piso
-        // también ocupa celdas en pisos ocultos (RF-18), y las calles vecinas
-        // de esos pisos tienen que recalcular su autotiling igual.
         private void Refrescar()
         {
             GetComponentInChildren<IPiezaColocada>(true)?.Refrescar();

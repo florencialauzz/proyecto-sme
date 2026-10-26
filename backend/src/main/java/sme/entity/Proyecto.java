@@ -2,8 +2,6 @@ package sme.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,7 +23,6 @@ import java.time.LocalTime;
         @UniqueConstraint(name = "uq_proyecto_usuario_nombre", columnNames = {"usuario_id", "nombre"})
 })
 public class Proyecto {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,10 +30,7 @@ public class Proyecto {
     @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
 
-    // Mapea la misma columna que usuarioId, solo de lectura: existe unicamente
-    // para que Hibernate genere la foreign key con ON DELETE CASCADE
-    // (ver contratos/esquema-bd.md). Las lecturas/escrituras de la relacion
-    // siguen haciendose a traves de usuarioId, no de este campo.
+    // Solo para que Hibernate cree la FK con ON DELETE CASCADE
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", insertable = false, updatable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
@@ -45,7 +39,6 @@ public class Proyecto {
     @Column(nullable = false, length = 100)
     private String nombre;
 
-    // Configuración de simulación (RF-08 a RF-11): se completa recién en Iteración 3.
     @Column(name = "cantidad_pisos")
     private Integer cantidadPisos;
 
@@ -61,11 +54,6 @@ public class Proyecto {
     @Column(name = "hora_fin_simulacion")
     private LocalTime horaFinSimulacion;
 
-    // Checkbox de la configuración: si la simulación sortea llegadas y
-    // permanencias dentro de ±50% (simulacion/GeneradorDemanda) o usa los
-    // valores planos. Por defecto activado. Los proyectos guardados antes de
-    // que existiera la columna quedan en false (MySQL completa con 0 al
-    // agregarla), que es como simulaban.
     @Column(name = "con_fluctuaciones", nullable = false)
     private Boolean conFluctuaciones = true;
 
@@ -74,10 +62,6 @@ public class Proyecto {
 
     @Column(name = "columnas_grilla", nullable = false)
     private Integer columnasGrilla = 15;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private EstadoProyecto estado = EstadoProyecto.FORMULARIO;
 
     @CreationTimestamp
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
@@ -122,9 +106,6 @@ public class Proyecto {
 
     public Integer getColumnasGrilla() { return columnasGrilla; }
     public void setColumnasGrilla(Integer columnasGrilla) { this.columnasGrilla = columnasGrilla; }
-
-    public EstadoProyecto getEstado() { return estado; }
-    public void setEstado(EstadoProyecto estado) { this.estado = estado; }
 
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }

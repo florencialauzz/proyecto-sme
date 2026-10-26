@@ -6,9 +6,6 @@ using UnityEngine.Networking;
 
 namespace Sme.Managers
 {
-    // Cliente HTTP genérico para hablar con el backend Spring Boot (contratos/api-contract.md).
-    // No es un MonoBehaviour: UnityWebRequest se puede completar por callback sin
-    // necesitar una corutina ni un GameObject que la hostee.
     public static class ApiClient
     {
         private const string BaseUrl = "http://localhost:8080/api";
@@ -23,7 +20,6 @@ namespace Sme.Managers
             EnviarConCuerpo(UnityWebRequest.kHttpVerbPOST, ruta, cuerpo, alTenerExito, alFallar);
         }
 
-        // RF-21: PUT /grilla reemplaza la grilla completa cada vez.
         public static void Put<TRequest, TResponse>(
             string ruta,
             TRequest cuerpo,
@@ -33,14 +29,13 @@ namespace Sme.Managers
             EnviarConCuerpo(UnityWebRequest.kHttpVerbPUT, ruta, cuerpo, alTenerExito, alFallar);
         }
 
-        // RF-05: DELETE /auth/cuenta necesita mandar la contraseña en el cuerpo,
-        // por eso reutiliza EnviarConCuerpo en vez de UnityWebRequest.Delete (que no acepta body).
         public static void Delete<TRequest, TResponse>(
             string ruta,
             TRequest cuerpo,
             Action<TResponse> alTenerExito,
             Action<string, string> alFallar)
         {
+            // UnityWebRequest.Delete no acepta body
             EnviarConCuerpo(UnityWebRequest.kHttpVerbDELETE, ruta, cuerpo, alTenerExito, alFallar);
         }
 
@@ -61,8 +56,6 @@ namespace Sme.Managers
             };
             request.SetRequestHeader("Content-Type", "application/json");
 
-            // Endpoints protegidos (todos salvo /auth/registro y /auth/login) necesitan
-            // el token de la sesión activa (contratos/api-contract.md, sección 1).
             if (SesionManager.HaySesionActiva)
             {
                 request.SetRequestHeader("Authorization", "Bearer " + SesionManager.Token);
@@ -84,10 +77,7 @@ namespace Sme.Managers
             };
         }
 
-        // RF-22: GET /proyectos. Método dedicado (no un Get<T> genérico) porque
-        // JsonUtility no puede parsear un array JSON de primer nivel — hay que
-        // envolverlo en un objeto antes de deserializar, y es más claro hacerlo
-        // una vez acá que en cada lugar que liste algo.
+        // JsonUtility no parsea un array de primer nivel, hay que envolverlo
         public static void ListarProyectos(
             Action<ProyectoResumenDto[]> alTenerExito,
             Action<string, string> alFallar)
@@ -123,9 +113,6 @@ namespace Sme.Managers
             public ProyectoResumenDto[] proyectos;
         }
 
-        // Abrir un proyecto guardado: GET /proyectos/{id}. Acá sí alcanza con
-        // JsonUtility.FromJson directo — la limitación es solo con arrays de
-        // primer nivel, un objeto no la tiene.
         public static void ObtenerProyecto(
             long proyectoId,
             Action<ProyectoDetalleResponse> alTenerExito,
@@ -155,9 +142,6 @@ namespace Sme.Managers
             };
         }
 
-        // RF-24 y RF-25: GET /proyectos/{id}/simulacion, el último resultado
-        // guardado. Si el proyecto no tiene, llega a alFallar con el código
-        // SIN_RESULTADOS.
         public static void ObtenerResultadoSimulacion(
             long proyectoId,
             Action<EjecutarSimulacionResponse> alTenerExito,
@@ -187,9 +171,6 @@ namespace Sme.Managers
             };
         }
 
-        // RF-03, punto 5: se consulta antes de pedir la respuesta, para mostrar la
-        // pregunta asociada al nombre de usuario ingresado. Ruta pública, no manda
-        // Authorization (todavía no hay sesión en este punto del flujo).
         public static void ObtenerPreguntaSeguridad(
             string nombreUsuario,
             Action<PreguntaSeguridadResponse> alTenerExito,
@@ -217,10 +198,6 @@ namespace Sme.Managers
 
         private static void NotificarError(string cuerpoRespuesta, Action<string, string> alFallar)
         {
-            // RNF-04: los errores internos no se muestran tal cual, solo mediante notificación.
-            // Si el backend respondió con el formato de error esperado, ese mensaje ya es
-            // apto para mostrar al usuario; si no (caída de red, backend abajo, etc.),
-            // se usa un mensaje genérico.
             if (!string.IsNullOrEmpty(cuerpoRespuesta))
             {
                 try
@@ -234,7 +211,6 @@ namespace Sme.Managers
                 }
                 catch (ArgumentException)
                 {
-                    // Respuesta no era el JSON de error esperado — cae al mensaje genérico.
                 }
             }
 

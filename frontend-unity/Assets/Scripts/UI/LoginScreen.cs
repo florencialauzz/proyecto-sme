@@ -7,14 +7,12 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-02: Iniciar sesión. Requiere que los campos de abajo estén asignados
-    // en el Inspector, sobre el Canvas de la pantalla de login.
     public class LoginScreen : MonoBehaviour
     {
         [SerializeField] private TMP_InputField campoNombreUsuario;
         [SerializeField] private TMP_InputField campoContrasena;
         [SerializeField] private Button botonIniciarSesion;
-        [SerializeField] private TMP_Text textoError;
+        [SerializeField] private AvisoError avisoError;
 
         [SerializeField] private UnityEvent alIniciarSesionConExito;
 
@@ -23,9 +21,6 @@ namespace Sme.UI
             botonIniciarSesion.onClick.AddListener(IniciarSesion);
         }
 
-        // Este panel no recarga la escena al mostrarse de nuevo (se activa/desactiva
-        // junto con Registro dentro de Auth), así que Awake no alcanza para limpiar
-        // un error que quedó de una visita anterior — OnEnable corre cada vez.
         private void OnEnable()
         {
             OcultarError();
@@ -48,13 +43,11 @@ namespace Sme.UI
                 alTenerExito: respuesta =>
                 {
                     botonIniciarSesion.interactable = true;
-                    SesionManager.GuardarSesion(respuesta.usuarioId, respuesta.token);
+                    SesionManager.GuardarSesion(respuesta.usuarioId, respuesta.token, request.nombreUsuario);
                     alIniciarSesionConExito?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    // A1 (usuario incorrecto) y A2 (contraseña incorrecta) llegan acá
-                    // según el "codigo" del error — el mensaje ya viene listo para mostrar.
                     botonIniciarSesion.interactable = true;
                     MostrarError(mensaje);
                 });
@@ -62,14 +55,12 @@ namespace Sme.UI
 
         private void MostrarError(string mensaje)
         {
-            textoError.text = mensaje;
-            textoError.gameObject.SetActive(true);
+            avisoError.Mostrar(mensaje);
         }
 
         private void OcultarError()
         {
-            textoError.text = string.Empty;
-            textoError.gameObject.SetActive(false);
+            avisoError.Ocultar();
         }
     }
 }

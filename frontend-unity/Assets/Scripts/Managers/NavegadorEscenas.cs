@@ -3,10 +3,6 @@ using UnityEngine.SceneManagement;
 
 namespace Sme.Managers
 {
-    // Wrapper fino sobre SceneManager: un UnityEvent del Inspector no puede
-    // apuntar a un método estático, así que este componente le da algo a lo
-    // que engancharse. Poner una instancia (GameObject "Navegador") en cada
-    // escena y cablear los botones/eventos de cambio de escena acá.
     public class NavegadorEscenas : MonoBehaviour
     {
         public void IrAAuth()
@@ -24,13 +20,11 @@ namespace Sme.Managers
             SceneManager.LoadScene("Editor");
         }
 
-        // RF-08 a RF-11: pantalla de configuración de simulación, entre Inicio y Editor.
         public void IrAConfiguracion()
         {
             SceneManager.LoadScene("Configuracion");
         }
 
-        // RF-26/RF-27: resultado de la simulación, después de ejecutarla desde el Editor.
         public void IrAResultados()
         {
             SceneManager.LoadScene("Resultados");

@@ -16,14 +16,9 @@ import org.hibernate.annotations.OnDeleteAction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// RF-23: los resultados guardados de una simulación. Espejo de
-// contratos/esquema-bd.md. Un solo resultado por proyecto: guardar otro
-// reemplaza al anterior (proyecto_id es UNIQUE). La curva y los períodos de
-// saturación van en sus propias tablas (PuntoOcupacion, PeriodoSaturacion).
 @Entity
 @Table(name = "resultado_simulacion")
 public class ResultadoSimulacion {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -31,9 +26,7 @@ public class ResultadoSimulacion {
     @Column(name = "proyecto_id", nullable = false, unique = true)
     private Long proyectoId;
 
-    // Mapea la misma columna que proyectoId, solo de lectura: existe unicamente
-    // para que Hibernate genere la foreign key con ON DELETE CASCADE (mismo
-    // criterio que Pieza.proyecto).
+    // Solo para que Hibernate cree la FK con ON DELETE CASCADE
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "proyecto_id", insertable = false, updatable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)

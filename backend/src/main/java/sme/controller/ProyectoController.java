@@ -21,6 +21,8 @@ import sme.dto.GuardarGrillaRequest;
 import sme.dto.GuardarGrillaResponse;
 import sme.dto.ProyectoDetalleResponse;
 import sme.dto.ProyectoResumenResponse;
+import sme.dto.RenombrarProyectoRequest;
+import sme.dto.RenombrarProyectoResponse;
 import sme.service.ProyectoService;
 
 import java.util.List;
@@ -28,14 +30,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/proyectos")
 public class ProyectoController {
-
     private final ProyectoService proyectoService;
 
     public ProyectoController(ProyectoService proyectoService) {
         this.proyectoService = proyectoService;
     }
 
-    // RF-07: el usuarioId sale del token validado por JwtAuthFilter, no del body.
     @PostMapping
     public ResponseEntity<CrearProyectoResponse> crear(@RequestBody CrearProyectoRequest request,
                                                          Authentication authentication) {
@@ -43,21 +43,18 @@ public class ProyectoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(proyectoService.crear(usuarioId, request));
     }
 
-    // RF-22
     @GetMapping
     public ResponseEntity<List<ProyectoResumenResponse>> listar(Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(proyectoService.listar(usuarioId));
     }
 
-    // Abrir un proyecto guardado para seguir editándolo.
     @GetMapping("/{id}")
     public ResponseEntity<ProyectoDetalleResponse> obtenerDetalle(@PathVariable Long id, Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(proyectoService.obtenerDetalle(usuarioId, id));
     }
 
-    // RF-13, RF-21
     @PutMapping("/{id}/grilla")
     public ResponseEntity<GuardarGrillaResponse> guardarGrilla(@PathVariable Long id,
                                                                 @RequestBody GuardarGrillaRequest request,
@@ -66,21 +63,26 @@ public class ProyectoController {
         return ResponseEntity.ok(proyectoService.guardarGrilla(usuarioId, id, request));
     }
 
-    // Duplicar un proyecto (sin RF propio todavía)
     @PostMapping("/{id}/duplicar")
     public ResponseEntity<DuplicarProyectoResponse> duplicar(@PathVariable Long id, Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED).body(proyectoService.duplicar(usuarioId, id));
     }
 
-    // Borrar un proyecto (sin RF propio todavía)
+    @PutMapping("/{id}/nombre")
+    public ResponseEntity<RenombrarProyectoResponse> renombrar(@PathVariable Long id,
+                                                               @RequestBody RenombrarProyectoRequest request,
+                                                               Authentication authentication) {
+        Long usuarioId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(proyectoService.renombrar(usuarioId, id, request));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<EliminarProyectoResponse> eliminar(@PathVariable Long id, Authentication authentication) {
         Long usuarioId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(proyectoService.eliminar(usuarioId, id));
     }
 
-    // RF-08 a RF-11
     @PutMapping("/{id}/configuracion")
     public ResponseEntity<GuardarConfiguracionResponse> guardarConfiguracion(@PathVariable Long id,
                                                                               @RequestBody GuardarConfiguracionRequest request,

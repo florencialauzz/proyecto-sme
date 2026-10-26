@@ -4,24 +4,16 @@ import sme.entity.Direccion;
 import sme.entity.SentidoVertical;
 import sme.entity.TipoPieza;
 
-// Una celda ocupada de la grilla, tal como la ve el motor de simulación.
-// Sale de una fila de Pieza, más lo que se deriva al armar la grilla (cuál
-// de las dos celdas de una rampa es la de entrada).
 public class CeldaSimulacion {
-
     private final int piso;
     private final int fila;
     private final int columna;
     private final TipoPieza tipo;
 
-    // Calle, Entrada, Salida y Rampa: hacia dónde sale el vehículo.
     private final Direccion direccion;
 
-    // Plaza y ZonaBicicletasMotos: de qué lado está la celda de circulación
-    // por la que se entra.
     private final Direccion caraAcceso;
 
-    // Solo Rampa.
     private final SentidoVertical sentidoVertical;
     private boolean esEntradaDeRampa;
 

@@ -10,21 +10,16 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // Controlador de la escena Editor: mensajes compartidos (RF-13, ver
-    // MensajesEditor), guardar proyecto (RF-21) y ejecutar la simulación
-    // (RF-26).
     public class EditorScreen : MonoBehaviour
     {
         private const float DuracionMensajeSegundos = 2.5f;
 
-        // Los errores (colocación rechazada, guardado fallido) se muestran en
-        // rojo, en negrita, un poco más grandes y más tiempo que los avisos
-        // normales ("Proyecto guardado."), para que no pasen desapercibidos.
         private const float DuracionErrorSegundos = 4f;
-        private const float AumentoTamanioError = 4f;
-        private static readonly Color ColorError = new Color(0.95f, 0.25f, 0.25f, 1f);
 
+        [SerializeField] private Image fondoMensaje;
+        [SerializeField] private TMP_Text iconoMensaje;
         [SerializeField] private TMP_Text textoMensaje;
+
         [SerializeField] private Button botonGuardar;
         [SerializeField] private Button botonSalir;
         [SerializeField] private Button botonConfiguracion;
@@ -32,35 +27,33 @@ namespace Sme.UI
 
         [SerializeField] private UnityEvent alSalir;
         [SerializeField] private UnityEvent alIrAConfiguracion;
-        [SerializeField] private UnityEvent alIrAResultados;
+
+        [SerializeField] private GameObject panelCambiosSinGuardar;
+        [SerializeField] private Button botonGuardarYSalir;
+        [SerializeField] private Button botonSalirSinGuardar;
+        [SerializeField] private Button botonCancelarSalida;
+
+        [SerializeField] private ModoReproduccion modoReproduccion;
 
         private Coroutine ocultamientoEnCurso;
 
-        // Mientras se guarda y se simula, el botón de simular queda
-        // deshabilitado aunque el diseño sea válido, para no mandar dos
-        // simulaciones seguidas con un doble clic.
         private bool simulacionEnCurso;
 
-        // Estilo del texto tal como está en la escena: es el de los avisos
-        // normales, y a él se vuelve después de mostrar un error.
-        private Color colorNormal;
-        private float tamanioNormal;
+        private Action salidaPendiente;
 
         private void Awake()
         {
             MensajesEditor.Registrar(this);
-            colorNormal = textoMensaje.color;
-            tamanioNormal = textoMensaje.fontSize;
-            textoMensaje.gameObject.SetActive(false);
+            fondoMensaje.gameObject.SetActive(false);
             botonGuardar.onClick.AddListener(GuardarProyecto);
             botonSalir.onClick.AddListener(Salir);
             botonConfiguracion.onClick.AddListener(IrAConfiguracion);
             botonSimular.onClick.AddListener(Simular);
+            botonGuardarYSalir.onClick.AddListener(GuardarYSalir);
+            botonSalirSinGuardar.onClick.AddListener(SalirSinGuardar);
+            botonCancelarSalida.onClick.AddListener(CerrarCambiosSinGuardar);
+            panelCambiosSinGuardar.SetActive(false);
 
-            // RF-20: el botón de simular solo se habilita con el diseño
-            // válido. La primera validación corre en el LateUpdate de
-            // GrillaGenerador, después de este Awake, así que el botón
-            // arranca deshabilitado y se actualiza con el evento.
             ValidadorDiseno.AlValidar += AlValidar;
             ActualizarBotonSimular();
         }
@@ -72,24 +65,22 @@ namespace Sme.UI
 
         public void MostrarMensaje(string mensaje)
         {
-            textoMensaje.color = colorNormal;
-            textoMensaje.fontSize = tamanioNormal;
-            textoMensaje.fontStyle = FontStyles.Normal;
+            fondoMensaje.color = Tema.Exito;
+            iconoMensaje.text = "✓";
             Mostrar(mensaje, DuracionMensajeSegundos);
         }
 
         public void MostrarError(string mensaje)
         {
-            textoMensaje.color = ColorError;
-            textoMensaje.fontSize = tamanioNormal + AumentoTamanioError;
-            textoMensaje.fontStyle = FontStyles.Bold;
+            fondoMensaje.color = Tema.Peligro;
+            iconoMensaje.text = "!";
             Mostrar(mensaje, DuracionErrorSegundos);
         }
 
         private void Mostrar(string mensaje, float duracionSegundos)
         {
             textoMensaje.text = mensaje;
-            textoMensaje.gameObject.SetActive(true);
+            fondoMensaje.gameObject.SetActive(true);
 
             if (ocultamientoEnCurso != null)
             {
@@ -102,7 +93,7 @@ namespace Sme.UI
         private IEnumerator OcultarLuegoDe(float segundos)
         {
             yield return new WaitForSeconds(segundos);
-            textoMensaje.gameObject.SetActive(false);
+            fondoMensaje.gameObject.SetActive(false);
             ocultamientoEnCurso = null;
         }
 
@@ -113,15 +104,10 @@ namespace Sme.UI
                 alFallar: null);
         }
 
-        // RF-21: lo usan el botón Guardar y el de Simular — la simulación
-        // corre sobre la grilla guardada en el backend, no sobre la que está
-        // en pantalla, así que antes de simular hay que guardar.
         private void GuardarGrilla(Action alGuardar, Action alFallar)
         {
             botonGuardar.interactable = false;
 
-            // cantidadPisos baja si se eliminó un piso desde el editor (RF-18)
-            // — se guarda junto con las piezas, no antes.
             var request = new GuardarGrillaRequest
             {
                 cantidadPisos = GrillaGenerador.CantidadPisos,
@@ -135,6 +121,7 @@ namespace Sme.UI
                 {
                     botonGuardar.interactable = true;
                     ProyectoManager.GuardarGrilla(request.piezas, request.cantidadPisos);
+                    GrillaGenerador.MarcarDisenoGuardado();
                     alGuardar?.Invoke();
                 },
                 alFallar: (mensaje, codigo) =>
@@ -144,8 +131,6 @@ namespace Sme.UI
                     alFallar?.Invoke();
                 });
         }
-
-        // --- RF-26: ejecutar simulación ---
 
         private void AlValidar(ValidadorDiseno.Resultado resultado)
         {
@@ -159,9 +144,6 @@ namespace Sme.UI
             botonSimular.interactable = disenoValido && !simulacionEnCurso;
         }
 
-        // Guarda la grilla y, si sale bien, pide la simulación. Los errores
-        // del backend (configuración incompleta, diseño inválido) se muestran
-        // igual que los del guardado.
         private void Simular()
         {
             simulacionEnCurso = true;
@@ -174,13 +156,14 @@ namespace Sme.UI
 
         private void EjecutarSimulacion()
         {
-            ApiClient.Post<EjecutarSimulacionRequest, EjecutarSimulacionResponse>(
+            ApiClient.Post<EjecutarSimulacionRequest, EjecutarSimulacionConReproduccionResponse>(
                 $"/proyectos/{ProyectoManager.ProyectoId}/simulacion/ejecutar",
                 new EjecutarSimulacionRequest(),
-                alTenerExito: resultado =>
+                alTenerExito: respuesta =>
                 {
-                    ProyectoManager.GuardarSimulacion(resultado, yaGuardada: false, abiertoDesdeInicio: false);
-                    alIrAResultados?.Invoke();
+                    EjecutarSimulacionResponse indicadores = SoloIndicadores(respuesta);
+                    ProyectoManager.GuardarSimulacion(indicadores, yaGuardada: false, abiertoDesdeInicio: false);
+                    modoReproduccion.Entrar(indicadores, respuesta.reproduccion);
                 },
                 alFallar: (mensaje, codigo) =>
                 {
@@ -189,26 +172,70 @@ namespace Sme.UI
                 });
         }
 
+        private static EjecutarSimulacionResponse SoloIndicadores(EjecutarSimulacionConReproduccionResponse respuesta)
+        {
+            return new EjecutarSimulacionResponse
+            {
+                eficienciaEspacial = respuesta.eficienciaEspacial,
+                calificacionEficiencia = respuesta.calificacionEficiencia,
+                curvaOcupacion = respuesta.curvaOcupacion,
+                demandaSatisfecha = respuesta.demandaSatisfecha,
+                vehiculosRechazados = respuesta.vehiculosRechazados,
+                periodosSaturacion = respuesta.periodosSaturacion,
+                puntuacionGeneral = respuesta.puntuacionGeneral,
+                calificacionTexto = respuesta.calificacionTexto
+            };
+        }
+
         private void TerminarSimulacionSinResultado()
         {
             simulacionEnCurso = false;
             ActualizarBotonSimular();
         }
 
-        // El botón no guarda solo: si hay cambios sin guardar, es el usuario
-        // quien decide si vuelve a Inicio de todos modos.
         private void Salir()
         {
-            alSalir?.Invoke();
+            SalirPreguntandoSiHayCambios(() => alSalir?.Invoke());
         }
 
-        // RF-08 a RF-11: permite volver a la pantalla de Configuración para
-        // cambiar frecuencia/permanencia/horario y simular otro escenario sobre
-        // el mismo proyecto ya modelado.
         private void IrAConfiguracion()
         {
-            ProyectoManager.MarcarConfiguracionAbiertaDesdeEditor();
-            alIrAConfiguracion?.Invoke();
+            SalirPreguntandoSiHayCambios(() =>
+            {
+                ProyectoManager.MarcarConfiguracionAbiertaDesdeEditor();
+                alIrAConfiguracion?.Invoke();
+            });
+        }
+
+        private void SalirPreguntandoSiHayCambios(Action salir)
+        {
+            if (!GrillaGenerador.HayCambiosSinGuardar())
+            {
+                salir();
+                return;
+            }
+
+            salidaPendiente = salir;
+            botonGuardarYSalir.interactable = true;
+            panelCambiosSinGuardar.SetActive(true);
+        }
+
+        private void GuardarYSalir()
+        {
+            botonGuardarYSalir.interactable = false;
+            GuardarGrilla(
+                alGuardar: () => salidaPendiente(),
+                alFallar: CerrarCambiosSinGuardar);
+        }
+
+        private void SalirSinGuardar()
+        {
+            salidaPendiente();
+        }
+
+        private void CerrarCambiosSinGuardar()
+        {
+            panelCambiosSinGuardar.SetActive(false);
         }
     }
 }

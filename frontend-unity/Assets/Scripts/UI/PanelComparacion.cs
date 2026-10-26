@@ -5,12 +5,8 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-25: los dos modales con el resumen de indicadores de cada proyecto,
-    // uno al lado del otro. Solo muestra: no marca cuál proyecto es mejor
-    // (lo pide el caso de uso).
     public class PanelComparacion : MonoBehaviour
     {
-        // El GameObject que se prende y apaga: el fondo con los dos modales.
         [SerializeField] private GameObject panel;
 
         [SerializeField] private TMP_Text tituloIzquierdo;

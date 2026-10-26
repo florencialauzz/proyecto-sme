@@ -12,12 +12,9 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-// RF-27 guardado (RF-23): un punto de la curva de ocupación. Espejo de
-// contratos/esquema-bd.md.
 @Entity
 @Table(name = "punto_ocupacion")
 public class PuntoOcupacion {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,8 +22,7 @@ public class PuntoOcupacion {
     @Column(name = "resultado_simulacion_id", nullable = false)
     private Long resultadoSimulacionId;
 
-    // Solo de lectura, para la foreign key con ON DELETE CASCADE (mismo
-    // criterio que Pieza.proyecto).
+    // Solo para que Hibernate cree la FK con ON DELETE CASCADE
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "resultado_simulacion_id", insertable = false, updatable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)

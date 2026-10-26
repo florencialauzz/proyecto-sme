@@ -21,7 +21,6 @@ import sme.security.JwtService;
 
 @Service
 public class AuthService {
-
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -32,8 +31,13 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    // RF-01: valida duplicado (A1) y coincidencia de contraseñas (A2) antes de registrar.
     public RegistroResponse registrar(RegistroRequest request) {
+        if (estaVacio(request.nombreUsuario()) || estaVacio(request.contrasena())
+                || estaVacio(request.confirmacionContrasena()) || estaVacio(request.preguntaSeguridad())
+                || estaVacio(request.respuestaSeguridad())) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CAMPOS_INCOMPLETOS",
+                    "Completá todos los campos para registrarte");
+        }
         if (usuarioRepository.existsByNombreUsuario(request.nombreUsuario())) {
             throw new NegocioException(HttpStatus.CONFLICT, "USUARIO_DUPLICADO", "Nombre de usuario ya registrado");
         }
@@ -52,8 +56,6 @@ public class AuthService {
         return new RegistroResponse(usuario.getId());
     }
 
-    // RF-02: distingue usuario inexistente (A1) de contraseña incorrecta (A2), tal
-    // como lo pide el caso de uso expandido.
     public LoginResponse iniciarSesion(LoginRequest request) {
         Usuario usuario = usuarioRepository.findByNombreUsuario(request.nombreUsuario())
                 .orElseThrow(() -> new NegocioException(HttpStatus.UNAUTHORIZED, "USUARIO_INEXISTENTE",
@@ -68,21 +70,21 @@ public class AuthService {
         return new LoginResponse(token, usuario.getId());
     }
 
-    // RF-03, punto 4-5: valida que el usuario exista (A1) y devuelve su pregunta
-    // de seguridad para mostrarla antes de pedir la respuesta.
     public PreguntaSeguridadResponse obtenerPreguntaSeguridad(String nombreUsuario) {
         Usuario usuario = buscarPorNombreUsuarioOFallar(nombreUsuario);
         return new PreguntaSeguridadResponse(usuario.getPreguntaSeguridad());
     }
 
-    // RF-03: valida respuesta de seguridad (A2) y coincidencia de la nueva
-    // contraseña con su confirmación (A3) antes de actualizar.
     public RecuperarContrasenaResponse recuperarContrasena(RecuperarContrasenaRequest request) {
         Usuario usuario = buscarPorNombreUsuarioOFallar(request.nombreUsuario());
 
         if (!passwordEncoder.matches(request.respuestaSeguridad(), usuario.getRespuestaSeguridadHash())) {
             throw new NegocioException(HttpStatus.UNAUTHORIZED, "RESPUESTA_SEGURIDAD_INCORRECTA",
                     "La respuesta ingresada no es correcta");
+        }
+        if (estaVacio(request.nuevaContrasena())) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CAMPOS_INCOMPLETOS",
+                    "La contraseña nueva no puede estar vacía");
         }
         if (!request.nuevaContrasena().equals(request.confirmacionNuevaContrasena())) {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "CONTRASENA_NO_COINCIDE",
@@ -94,14 +96,16 @@ public class AuthService {
         return new RecuperarContrasenaResponse(true);
     }
 
-    // RF-04: valida contraseña actual (A1) y coincidencia de la nueva contraseña
-    // con su confirmación (A2) antes de actualizar.
     public CambiarContrasenaResponse cambiarContrasena(Long usuarioId, CambiarContrasenaRequest request) {
         Usuario usuario = buscarPorIdOFallar(usuarioId);
 
         if (!passwordEncoder.matches(request.contrasenaActual(), usuario.getContrasenaHash())) {
             throw new NegocioException(HttpStatus.UNAUTHORIZED, "CONTRASENA_ACTUAL_INCORRECTA",
                     "La contraseña actual ingresada no es correcta");
+        }
+        if (estaVacio(request.contrasenaNueva())) {
+            throw new NegocioException(HttpStatus.BAD_REQUEST, "CAMPOS_INCOMPLETOS",
+                    "La contraseña nueva no puede estar vacía");
         }
         if (!request.contrasenaNueva().equals(request.confirmacionContrasenaNueva())) {
             throw new NegocioException(HttpStatus.BAD_REQUEST, "CONTRASENA_NO_COINCIDE",
@@ -113,8 +117,6 @@ public class AuthService {
         return new CambiarContrasenaResponse(true);
     }
 
-    // RF-05: valida contraseña (A1) antes de eliminar la cuenta. El borrado en
-    // cascada de proyectos/piezas/resultados lo resuelve la BD (esquema-bd.md).
     public EliminarCuentaResponse eliminarCuenta(Long usuarioId, EliminarCuentaRequest request) {
         Usuario usuario = buscarPorIdOFallar(usuarioId);
 
@@ -125,6 +127,10 @@ public class AuthService {
 
         usuarioRepository.delete(usuario);
         return new EliminarCuentaResponse(true);
+    }
+
+    private static boolean estaVacio(String valor) {
+        return valor == null || valor.isBlank();
     }
 
     private Usuario buscarPorNombreUsuarioOFallar(String nombreUsuario) {

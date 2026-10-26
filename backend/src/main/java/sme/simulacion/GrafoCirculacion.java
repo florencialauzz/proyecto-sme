@@ -6,20 +6,13 @@ import sme.entity.TipoPieza;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-// editor/grafo-circulacion.md del lado de Java: por dónde puede pasar un
-// vehículo, para que el motor busque la plaza libre más cercana a la entrada
-// (RF-26). Todo se deriva de la grilla en el momento, no hay nada guardado.
-//
-// Unity tiene su propia copia de estas reglas para validar el diseño mientras
-// se arma (RF-20). Son implementaciones separadas a propósito
-// (arquitectura/decisiones.md): no hay que unificarlas.
 public class GrafoCirculacion {
-
     private static final Direccion[] DIRECCIONES = {
             Direccion.NORTE, Direccion.SUR, Direccion.ESTE, Direccion.OESTE
     };
@@ -30,9 +23,6 @@ public class GrafoCirculacion {
         this.grilla = grilla;
     }
 
-    // Calle, Entrada, Salida y Rampa participan del grafo. Plaza y
-    // ZonaBicicletasMotos se enganchan por su boca pero el vehículo no las
-    // atraviesa; la Escalera es solo para el peatón.
     public static boolean esCeldaDeCirculacion(CeldaSimulacion celda) {
         if (celda == null) return false;
         TipoPieza tipo = celda.getTipo();
@@ -40,16 +30,12 @@ public class GrafoCirculacion {
                 || tipo == TipoPieza.RAMPA;
     }
 
-    // Colineal con el eje norte-sur o este-oeste que une a la celda con esa
-    // vecina, para cualquiera de los dos lados del eje.
     private static boolean esColinealConEje(Direccion flecha, Direccion direccionAlVecino) {
         boolean ejeEsNorteSur = direccionAlVecino == Direccion.NORTE || direccionAlVecino == Direccion.SUR;
         boolean flechaEsNorteSur = flecha == Direccion.NORTE || flecha == Direccion.SUR;
         return ejeEsNorteSur == flechaEsNorteSur;
     }
 
-    // Dos celdas de circulación contiguas están conectadas si al menos una de
-    // las dos flechas guardadas es colineal con el eje que las une.
     private static boolean estanConectadas(CeldaSimulacion celda, CeldaSimulacion vecina, Direccion direccionAlVecino) {
         if (!esCeldaDeCirculacion(celda) || !esCeldaDeCirculacion(vecina)) return false;
 
@@ -69,18 +55,10 @@ public class GrafoCirculacion {
         return conectadas;
     }
 
-    // 3 o más conexiones → cruce. Entrada, Salida y Rampa nunca son cruce.
     private boolean esCruce(CeldaSimulacion celda) {
         return celda.getTipo() == TipoPieza.CALLE && direccionesConectadas(celda).size() >= 3;
     }
 
-    // Por qué caras puede salir el vehículo hacia una vecina del mismo piso:
-    // - Calle segmento: solo la cara de su flecha.
-    // - Calle cruce: cualquier cara conectada (perdió la flecha).
-    // - Entrada: la cara de su flecha, que apunta hacia adentro.
-    // - Salida: ninguna hacia la grilla, su flecha apunta afuera.
-    // - Rampa, piso de entrada: ninguna horizontal, solo el salto.
-    // - Rampa, piso de salida: la cara de su flecha.
     private List<Direccion> carasDeSalida(CeldaSimulacion celda) {
         switch (celda.getTipo()) {
             case CALLE:
@@ -100,14 +78,6 @@ public class GrafoCirculacion {
         }
     }
 
-    // Si la celda deja entrar al vehículo que llega por esa cara. Quien llama
-    // ya verificó que las dos celdas están conectadas.
-    // - Calle segmento: por cualquier cara que no sea la de su flecha.
-    // - Calle cruce: por cualquiera.
-    // - Entrada: por ninguna (es fuente).
-    // - Salida: por cualquiera.
-    // - Rampa, piso de entrada: solo por la cara opuesta a la flecha.
-    // - Rampa, piso de salida: por ninguna, ahí solo se llega por el salto.
     private boolean aceptaEntradaPor(CeldaSimulacion celda, Direccion caraDeLlegada) {
         switch (celda.getTipo()) {
             case CALLE:
@@ -122,8 +92,6 @@ public class GrafoCirculacion {
         }
     }
 
-    // La celda de rampa del otro piso que corresponde a esta, si esta es la
-    // del piso de entrada. null si no lo es.
     private CeldaSimulacion parDeRampa(CeldaSimulacion celda) {
         if (celda.getTipo() != TipoPieza.RAMPA || !celda.isEsEntradaDeRampa()) return null;
 
@@ -134,9 +102,6 @@ public class GrafoCirculacion {
         return esSuPar ? par : null;
     }
 
-    // Existe la arista A → B si A y B están conectadas, B está sobre una
-    // salida de A, y B acepta la entrada desde A. Además, la entrada de una
-    // rampa tiene una arista al salto: su par en el otro piso.
     public List<CeldaSimulacion> sucesores(CeldaSimulacion celda) {
         List<CeldaSimulacion> sucesores = new ArrayList<>();
         if (!esCeldaDeCirculacion(celda)) return sucesores;
@@ -158,9 +123,6 @@ public class GrafoCirculacion {
         return sucesores;
     }
 
-    // Cantidad de celdas que recorre el vehículo desde el origen hasta cada
-    // celda de circulación alcanzable (recorrido en anchura sobre las
-    // aristas). Las celdas que no aparecen en el mapa no son alcanzables.
     public Map<CeldaSimulacion, Integer> distanciasDesde(CeldaSimulacion origen) {
         Map<CeldaSimulacion, Integer> distancias = new HashMap<>();
         Queue<CeldaSimulacion> pendientes = new ArrayDeque<>();
@@ -181,5 +143,44 @@ public class GrafoCirculacion {
         }
 
         return distancias;
+    }
+
+    public List<CeldaSimulacion> caminoHasta(CeldaSimulacion origen, CeldaSimulacion destino) {
+        return caminoHastaLaMasCercana(origen, List.of(destino));
+    }
+
+    public List<CeldaSimulacion> caminoHastaLaMasCercana(CeldaSimulacion origen, List<CeldaSimulacion> destinos) {
+        Map<CeldaSimulacion, CeldaSimulacion> predecesores = new HashMap<>();
+        Queue<CeldaSimulacion> pendientes = new ArrayDeque<>();
+
+        predecesores.put(origen, null);
+        pendientes.add(origen);
+
+        CeldaSimulacion destinoEncontrado = null;
+        while (!pendientes.isEmpty()) {
+            CeldaSimulacion actual = pendientes.poll();
+            if (destinos.contains(actual)) {
+                destinoEncontrado = actual;
+                break;
+            }
+
+            for (CeldaSimulacion siguiente : sucesores(actual)) {
+                if (predecesores.containsKey(siguiente)) continue;
+
+                predecesores.put(siguiente, actual);
+                pendientes.add(siguiente);
+            }
+        }
+
+        List<CeldaSimulacion> camino = new ArrayList<>();
+        if (destinoEncontrado == null) return camino;
+
+        CeldaSimulacion celda = destinoEncontrado;
+        while (celda != null) {
+            camino.add(celda);
+            celda = predecesores.get(celda);
+        }
+        Collections.reverse(camino);
+        return camino;
     }
 }

@@ -7,12 +7,6 @@ using UnityEngine.UI;
 
 namespace Sme.UI
 {
-    // RF-03: Olvidó su contraseña. Se accede desde la pantalla de login. Dos
-    // pasos sobre el mismo Canvas: primero se pide el nombre de usuario (A1 si
-    // no existe) y se muestra su pregunta de seguridad; después se piden la
-    // respuesta y la nueva contraseña juntas, igual que Registro junta todos
-    // sus campos en un solo submit (A2 respuesta incorrecta, A3 confirmación
-    // no coincide se resuelven ahí, del lado del servidor).
     public class RecuperarContrasenaScreen : MonoBehaviour
     {
         [SerializeField] private GameObject panelUsuario;
@@ -26,7 +20,7 @@ namespace Sme.UI
         [SerializeField] private TMP_InputField campoConfirmacionNuevaContrasena;
         [SerializeField] private Button botonRecuperar;
 
-        [SerializeField] private TMP_Text textoError;
+        [SerializeField] private AvisoError avisoError;
 
         [SerializeField] private UnityEvent alRecuperarConExito;
 
@@ -38,9 +32,6 @@ namespace Sme.UI
             botonRecuperar.onClick.AddListener(RecuperarContrasena);
         }
 
-        // Este panel no recarga la escena al mostrarse de nuevo, así que Awake no
-        // alcanza para limpiar un error (ni el paso en el que quedó) de una
-        // visita anterior — OnEnable corre cada vez que el panel se reactiva.
         private void OnEnable()
         {
             MostrarPanelUsuario();
@@ -53,7 +44,6 @@ namespace Sme.UI
             panelRespuesta.SetActive(false);
         }
 
-        // Flujo principal, puntos 2-5.
         private void BuscarPreguntaSeguridad()
         {
             OcultarError();
@@ -71,13 +61,11 @@ namespace Sme.UI
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    // A1: nombre de usuario inexistente, vuelve al punto 2.
                     botonContinuar.interactable = true;
                     MostrarError(mensaje);
                 });
         }
 
-        // Flujo principal, puntos 6-11.
         private void RecuperarContrasena()
         {
             OcultarError();
@@ -101,8 +89,6 @@ namespace Sme.UI
                 },
                 alFallar: (mensaje, codigo) =>
                 {
-                    // A2 (respuesta incorrecta) y A3 (confirmación no coincide) llegan
-                    // acá según el "codigo" del error — ambas vuelven a este mismo panel.
                     botonRecuperar.interactable = true;
                     MostrarError(mensaje);
                 });
@@ -110,14 +96,12 @@ namespace Sme.UI
 
         private void MostrarError(string mensaje)
         {
-            textoError.text = mensaje;
-            textoError.gameObject.SetActive(true);
+            avisoError.Mostrar(mensaje);
         }
 
         private void OcultarError()
         {
-            textoError.text = string.Empty;
-            textoError.gameObject.SetActive(false);
+            avisoError.Ocultar();
         }
     }
 }

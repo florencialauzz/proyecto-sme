@@ -1,4 +1,4 @@
 package sme.dto;
 
-public record CrearProyectoResponse(Long proyectoId, Integer filasGrilla, Integer columnasGrilla, String estado) {
+public record CrearProyectoResponse(Long proyectoId, Integer filasGrilla, Integer columnasGrilla) {
 }

@@ -3,9 +3,6 @@ package sme.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
-// RF-26: respuesta de POST /simulacion/ejecutar (contratos/api-contract.md).
-// Viajan todos los indicadores en una sola respuesta. GET /simulacion
-// devuelve el mismo shape con el último resultado guardado (RF-24).
 public record EjecutarSimulacionResponse(
         BigDecimal eficienciaEspacial,
         String calificacionEficiencia,
@@ -14,5 +11,6 @@ public record EjecutarSimulacionResponse(
         Integer vehiculosRechazados,
         List<PeriodoSaturacionResponse> periodosSaturacion,
         BigDecimal puntuacionGeneral,
-        String calificacionTexto) {
+        String calificacionTexto,
+        ReproduccionResponse reproduccion) {
 }

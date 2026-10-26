@@ -4,47 +4,82 @@ using Sme.Models;
 
 namespace Sme.UI
 {
-    // Arma los textos de los indicadores de una simulación. Lo usan la
-    // pantalla de resultados (RF-24) y los modales de comparación (RF-25),
-    // así los dos muestran los mismos números con el mismo formato.
     public static class FormatoIndicadores
     {
         private const int MinutosPorHora = 60;
 
-        // RF-15
-        public static string Eficiencia(EjecutarSimulacionResponse resultado)
+        public static string ValorEficiencia(EjecutarSimulacionResponse resultado)
         {
-            return $"Eficiencia espacial: {Porcentaje(resultado.eficienciaEspacial)}% ({resultado.calificacionEficiencia})";
+            return $"{Porcentaje(resultado.eficienciaEspacial)}%";
         }
 
-        // RF-29
-        public static string Demanda(EjecutarSimulacionResponse resultado)
+        public static string DetalleEficiencia(EjecutarSimulacionResponse resultado)
         {
-            return $"Demanda satisfecha: {Porcentaje(resultado.demandaSatisfecha)}% " +
-                   $"({resultado.vehiculosRechazados} vehículos rechazados)";
+            return $"Calificación: {resultado.calificacionEficiencia}";
         }
 
-        // RF-30
-        public static string Puntuacion(EjecutarSimulacionResponse resultado)
+        public static string ValorDemanda(EjecutarSimulacionResponse resultado)
         {
-            return $"Puntuación general: {Porcentaje(resultado.puntuacionGeneral)} / 100 ({resultado.calificacionTexto})";
+            return $"{Porcentaje(resultado.demandaSatisfecha)}%";
         }
 
-        // RF-28: los intervalos en horas del día, seguidos y separados por
-        // coma (uno por renglón empujaba la gráfica cuando eran varios). Un
-        // intervalo [inicio, fin] incluye el minuto fin entero, así que la
-        // hora de cierre es la del minuto siguiente. Sin intervalos, Flujo
-        // Alternativo A1.
-        public static string Saturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
+        public static string DetalleDemanda(EjecutarSimulacionResponse resultado)
+        {
+            return resultado.vehiculosRechazados == 1
+                ? "1 vehículo rechazado"
+                : $"{resultado.vehiculosRechazados} vehículos rechazados";
+        }
+
+        public static string ValorSaturacion(EjecutarSimulacionResponse resultado)
         {
             PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
             if (periodos == null || periodos.Length == 0)
             {
-                return "Período de saturación: no hubo saturación.";
+                return "Sin saturación";
             }
 
+            return $"{MinutosSaturados(periodos)} min";
+        }
+
+        public static string DetalleSaturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
+        {
+            PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
+            if (periodos == null || periodos.Length == 0)
+            {
+                return "El estacionamiento nunca se llenó.";
+            }
+            if (periodos.Length == 1)
+            {
+                string intervalo = IntervalosSaturacion(periodos, horaInicioSimulacion);
+                return char.ToUpperInvariant(intervalo[0]) + intervalo.Substring(1);
+            }
+            return $"En {periodos.Length} intervalos (detalle debajo del gráfico)";
+        }
+
+        public static string PeriodosSaturacion(EjecutarSimulacionResponse resultado, string horaInicioSimulacion)
+        {
+            PeriodoSaturacionDto[] periodos = resultado.periodosSaturacion;
+            if (periodos == null || periodos.Length == 0)
+            {
+                return string.Empty;
+            }
+            return "Períodos de saturación: " + IntervalosSaturacion(periodos, horaInicioSimulacion) + ".";
+        }
+
+        public static string ValorPuntuacion(EjecutarSimulacionResponse resultado)
+        {
+            return $"{Porcentaje(resultado.puntuacionGeneral)}<size=55%> / 100</size>";
+        }
+
+        public static string DetallePuntuacion(EjecutarSimulacionResponse resultado)
+        {
+            return resultado.calificacionTexto;
+        }
+
+        private static string IntervalosSaturacion(PeriodoSaturacionDto[] periodos, string horaInicioSimulacion)
+        {
             int minutoInicioDelDia = MinutoDelDia(horaInicioSimulacion);
-            var texto = new StringBuilder("Período de saturación: ");
+            var texto = new StringBuilder();
             for (int i = 0; i < periodos.Length; i++)
             {
                 if (i > 0)
@@ -58,11 +93,16 @@ namespace Sme.UI
             return texto.ToString();
         }
 
-        // RF-25: todos los indicadores juntos, para un modal de comparación.
-        // Etiquetas cortas a propósito: los modales son angostos (van dos uno
-        // al lado del otro). La saturación va resumida en intervalos y
-        // minutos totales, sin las horas (GET /simulacion no trae el horario
-        // de cada proyecto, y para comparar alcanza con cuánto tiempo saturó).
+        private static int MinutosSaturados(PeriodoSaturacionDto[] periodos)
+        {
+            int minutosSaturados = 0;
+            foreach (PeriodoSaturacionDto periodo in periodos)
+            {
+                minutosSaturados += periodo.fin - periodo.inicio + 1;
+            }
+            return minutosSaturados;
+        }
+
         public static string Resumen(EjecutarSimulacionResponse resultado)
         {
             return $"Eficiencia: {Porcentaje(resultado.eficienciaEspacial)}% ({resultado.calificacionEficiencia})\n"
@@ -79,11 +119,7 @@ namespace Sme.UI
                 return "Saturación: no hubo";
             }
 
-            int minutosSaturados = 0;
-            foreach (PeriodoSaturacionDto periodo in periodos)
-            {
-                minutosSaturados += periodo.fin - periodo.inicio + 1;
-            }
+            int minutosSaturados = MinutosSaturados(periodos);
 
             string intervalos = periodos.Length == 1 ? "1 intervalo" : $"{periodos.Length} intervalos";
             return $"Saturación: {intervalos}, {minutosSaturados} min";
@@ -94,8 +130,7 @@ namespace Sme.UI
             return valor.ToString("0.00", CultureInfo.InvariantCulture);
         }
 
-        // Las horas llegan como "HH:mm" o "HH:mm:ss" (mismo criterio que GraficoCurva).
-        private static int MinutoDelDia(string hora)
+        public static int MinutoDelDia(string hora)
         {
             if (string.IsNullOrEmpty(hora)) return 0;
 
@@ -105,7 +140,7 @@ namespace Sme.UI
             return horas * MinutosPorHora + minutos;
         }
 
-        private static string HoraDelDia(int minutoDelDia)
+        public static string HoraDelDia(int minutoDelDia)
         {
             int horas = minutoDelDia / MinutosPorHora % 24;
             int minutos = minutoDelDia % MinutosPorHora;

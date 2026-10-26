@@ -3,11 +3,16 @@ package sme.service;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import sme.dto.CeldaResponse;
 import sme.dto.EjecutarSimulacionResponse;
+import sme.dto.EventoVehiculoResponse;
 import sme.dto.GuardarSimulacionRequest;
 import sme.dto.GuardarSimulacionResponse;
 import sme.dto.PeriodoSaturacionResponse;
+import sme.dto.PlazaReproduccionResponse;
 import sme.dto.PuntoOcupacionResponse;
+import sme.dto.ReproduccionResponse;
+import sme.dto.ResultadoSimulacionResponse;
 import sme.entity.PeriodoSaturacion;
 import sme.entity.Pieza;
 import sme.entity.Proyecto;
@@ -19,6 +24,9 @@ import sme.repository.PiezaRepository;
 import sme.repository.ProyectoRepository;
 import sme.repository.PuntoOcupacionRepository;
 import sme.repository.ResultadoSimulacionRepository;
+import sme.simulacion.CaminosDePlaza;
+import sme.simulacion.CeldaSimulacion;
+import sme.simulacion.EventoVehiculo;
 import sme.simulacion.GeneradorDemanda;
 import sme.simulacion.GrillaSimulacion;
 import sme.simulacion.Indicadores;
@@ -34,7 +42,6 @@ import java.util.List;
 
 @Service
 public class SimulacionService {
-
     private final ProyectoRepository proyectoRepository;
     private final PiezaRepository piezaRepository;
     private final ResultadoSimulacionRepository resultadoSimulacionRepository;
@@ -53,14 +60,6 @@ public class SimulacionService {
         this.periodoSaturacionRepository = periodoSaturacionRepository;
     }
 
-    // RF-26: simula sobre la grilla guardada y devuelve el resultado sin
-    // persistir nada — el usuario puede ejecutar varias veces antes de
-    // decidir guardar (RF-23).
-    //
-    // Precondición del caso de uso: configuración completa y diseño que pasa
-    // RF-20. La validación de consistencia corre en Unity (el botón de
-    // simular está bloqueado mientras haya advertencias); acá solo se
-    // rechaza lo que haría fallar al motor, sin volver a validar el diseño.
     public EjecutarSimulacionResponse ejecutar(Long usuarioId, Long proyectoId) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
@@ -127,19 +126,46 @@ public class SimulacionService {
                 resultado.vehiculosRechazados(),
                 periodosSaturacion,
                 puntuacionGeneral,
-                calificacionTexto);
+                calificacionTexto,
+                armarReproduccion(motor, resultado));
     }
 
-    // RF-23: guarda el resultado que el cliente recibió de /ejecutar y
-    // reenvía. Si el proyecto ya tenía resultados, se reemplazan (A2): se
-    // borra el anterior (la curva y los períodos se van en cascada) y se
-    // inserta el nuevo, en la misma transacción.
+    private static ReproduccionResponse armarReproduccion(MotorSimulacion motor, ResultadoMotor resultado) {
+        List<PlazaReproduccionResponse> plazas = motor.calcularCaminosDePlazas().stream()
+                .map(SimulacionService::aPlazaReproduccion)
+                .toList();
+
+        List<EventoVehiculoResponse> eventos = resultado.eventos().stream()
+                .map(SimulacionService::aEventoVehiculo)
+                .toList();
+
+        return new ReproduccionResponse(plazas, motor.indicePlazaRecorridoRechazados(), eventos);
+    }
+
+    private static PlazaReproduccionResponse aPlazaReproduccion(CaminosDePlaza caminos) {
+        CeldaSimulacion plaza = caminos.plaza();
+        return new PlazaReproduccionResponse(
+                plaza.getPiso(),
+                plaza.getFila(),
+                plaza.getColumna(),
+                aCeldas(caminos.caminoEntrada()),
+                aCeldas(caminos.caminoSalida()));
+    }
+
+    private static List<CeldaResponse> aCeldas(List<CeldaSimulacion> camino) {
+        return camino.stream()
+                .map(celda -> new CeldaResponse(celda.getPiso(), celda.getFila(), celda.getColumna()))
+                .toList();
+    }
+
+    private static EventoVehiculoResponse aEventoVehiculo(EventoVehiculo evento) {
+        return new EventoVehiculoResponse(evento.minutoLlegada(), evento.minutoSalida(), evento.indicePlaza());
+    }
+
     @Transactional
     public GuardarSimulacionResponse guardar(Long usuarioId, Long proyectoId, GuardarSimulacionRequest request) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
-        // A1: sin una simulación ejecutada no hay nada que guardar. En Unity
-        // el botón ni se habilita; esto cubre un request incompleto.
         boolean resultadoCompleto = request.eficienciaEspacial() != null
                 && request.calificacionEficiencia() != null
                 && request.curvaOcupacion() != null
@@ -155,8 +181,6 @@ public class SimulacionService {
 
         resultadoSimulacionRepository.deleteByProyectoId(proyecto.getId());
 
-        // Unity manda los porcentajes como float (28.5 puede llegar como
-        // 28.499999): se redondean a los dos decimales de DECIMAL(5,2).
         ResultadoSimulacion resultado = new ResultadoSimulacion();
         resultado.setProyectoId(proyecto.getId());
         resultado.setEficienciaEspacial(dosDecimales(request.eficienciaEspacial()));
@@ -193,10 +217,7 @@ public class SimulacionService {
         return new GuardarSimulacionResponse(true);
     }
 
-    // RF-24 al reabrir un proyecto, y RF-25 (una llamada por proyecto). Mismo
-    // shape que /ejecutar. Sin resultados guardados, 404 SIN_RESULTADOS: RF-25
-    // lo usa para su Flujo Alternativo A1.
-    public EjecutarSimulacionResponse obtenerGuardado(Long usuarioId, Long proyectoId) {
+    public ResultadoSimulacionResponse obtenerGuardado(Long usuarioId, Long proyectoId) {
         Proyecto proyecto = obtenerProyectoDelUsuario(usuarioId, proyectoId);
 
         ResultadoSimulacion resultado = resultadoSimulacionRepository.findByProyectoId(proyecto.getId())
@@ -213,7 +234,7 @@ public class SimulacionService {
                 .map(periodo -> new PeriodoSaturacionResponse(periodo.getInicio(), periodo.getFin()))
                 .toList();
 
-        return new EjecutarSimulacionResponse(
+        return new ResultadoSimulacionResponse(
                 resultado.getEficienciaEspacial(),
                 resultado.getCalificacionEficiencia(),
                 curva,
@@ -228,8 +249,6 @@ public class SimulacionService {
         return valor.setScale(2, RoundingMode.HALF_UP);
     }
 
-    // Misma regla que ProyectoService (contratos/api-contract.md, sección 1):
-    // un proyecto de otro usuario responde 404, no 403.
     private Proyecto obtenerProyectoDelUsuario(Long usuarioId, Long proyectoId) {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new NegocioException(HttpStatus.NOT_FOUND, "PROYECTO_NO_ENCONTRADO", "Proyecto no encontrado"));
